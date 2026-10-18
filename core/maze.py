@@ -3,7 +3,7 @@ class Maze:
         """Создаёт лабиринт по матрице клеток.
 
         Args:
-            grid: Двумерный список, где 0 — проход, 1 — стена.
+            grid: Двумерный список, где 0 — проход, 1 — стена, 2 — выход.
             start: Координаты стартовой клетки в формате (row, col).
             end: Координаты конечной клетки в формате (row, col).
         """
@@ -14,9 +14,9 @@ class Maze:
         self.start = None
         self.end = None
 
-        if start is not None: # Если стартовая клетка указана, устанавливаем её
+        if start is not None:  # Если стартовая клетка указана, устанавливаем её
             self.set_start(start)
-        if end is not None: # Если конечная клетка указана, устанавливаем её
+        if end is not None:  # Если конечная клетка указана, устанавливаем её
             self.set_end(end)
 
     def __getitem__(self, position: tuple[int, int]) -> int:
@@ -34,8 +34,22 @@ class Maze:
         return 0 <= row < self.rows and 0 <= col < self.cols
 
     def is_free(self, row: int, col: int) -> bool:
-        """Проверяет, является ли клетка проходом и не выходит за границы."""
-        return self.in_bounds(row, col) and self.grid[row][col] == 0
+        """Проверяет, является ли клетка проходом и не выходит за границы.
+
+        Клетки со значением 0 и 2 считаются проходимыми: 2 — это выход.
+        """
+        return self.in_bounds(row, col) and self.grid[row][col] in (0, 2)
+
+    def find_exit(self, value: int = 2) -> tuple[int, int] | None:
+        """Ищет координаты выхода в лабиринте.
+
+        По умолчанию выход помечен числом 2.
+        """
+        for row in range(self.rows):
+            for col in range(self.cols):
+                if self.grid[row][col] == value:
+                    return (row, col)
+        return None
 
     def set_start(self, position: tuple[int, int]) -> None:
         """Устанавливает стартовую клетку.
@@ -81,7 +95,8 @@ class Maze:
             nr = row + dr
             nc = col + dc
 
-            # Добавляем только те клетки, которые являются проходом
+            # Добавляем только те клетки, которые являются проходом.
+            # Клетка 2 тоже считается проходимой: это выход.
             if self.is_free(nr, nc):
                 result.append((nr, nc))
 
