@@ -1,9 +1,13 @@
+import random
+
+
 class Maze:
     def __init__(self, grid: list[list[int]], start: tuple[int, int] | None = None, end: tuple[int, int] | None = None):
         """Создаёт лабиринт по матрице клеток.
 
         Args:
-            grid: Двумерный список, где 0 — проход, 1 — стена, 2 — выход.
+            grid: Двумерный список, где 0 — проход, 1 — стена, 2 — старт,
+                3 — выход.
             start: Координаты стартовой клетки в формате (row, col).
             end: Координаты конечной клетки в формате (row, col).
         """
@@ -16,6 +20,8 @@ class Maze:
 
         if start is not None:  # Если стартовая клетка указана, устанавливаем её
             self.set_start(start)
+        else:
+            self.start = self.find_start()
         if end is not None:  # Если конечная клетка указана, устанавливаем её
             self.set_end(end)
 
@@ -36,14 +42,22 @@ class Maze:
     def is_free(self, row: int, col: int) -> bool:
         """Проверяет, является ли клетка проходом и не выходит за границы.
 
-        Клетки со значением 0 и 2 считаются проходимыми: 2 — это выход.
+        Клетки со значениями 0, 2 и 3 проходимы: 2 — старт, 3 — выход.
         """
-        return self.in_bounds(row, col) and self.grid[row][col] in (0, 2)
+        return self.in_bounds(row, col) and self.grid[row][col] in (0, 2, 3)
 
-    def find_exit(self, value: int = 2) -> tuple[int, int] | None:
+    def find_start(self, value: int = 2) -> tuple[int, int] | None:
+        """Ищет координаты старта, отмеченного заданным значением."""
+        for row in range(self.rows):
+            for col in range(self.cols):
+                if self.grid[row][col] == value:
+                    return (row, col)
+        return None
+
+    def find_exit(self, value: int = 3) -> tuple[int, int] | None:
         """Ищет координаты выхода в лабиринте.
 
-        По умолчанию выход помечен числом 2.
+        По умолчанию выход помечен числом 3.
         """
         for row in range(self.rows):
             for col in range(self.cols):
@@ -96,8 +110,93 @@ class Maze:
             nc = col + dc
 
             # Добавляем только те клетки, которые являются проходом.
-            # Клетка 2 тоже считается проходимой: это выход.
+            # Маркеры старта (2) и выхода (3) тоже считаются проходимыми.
             if self.is_free(nr, nc):
                 result.append((nr, nc))
 
         return result
+
+    def __str__(self) -> str:
+        return "\n".join("  ".join(str(cell) for cell in row) for row in self.grid)
+
+
+
+def generate_maze(width: int, height: int, seed: int | None = None) -> Maze:
+    """Создаёт случайный лабиринт алгоритмом Randomized DFS.
+
+    Размеры включают внешнюю стену. После прокладки связного лабиринта
+    каждая оставшаяся внутренняя стена с вероятностью 50% превращается
+    в проход. `seed` позволяет повторно получить тот же лабиринт.
+    """
+    if width < 5 or height < 5:
+        raise ValueError("Ширина и высота должны быть не меньше 5")
+
+    rng = random.Random(seed)
+    grid = [[1 for _ in range(width)] for _ in range(height)]
+    start_candidates = [
+        (row, col)
+        for row in range(1, height - 1, 2)
+        for col in range(1, width - 1, 2)
+    ]
+    start = rng.choice(start_candidates)
+    grid[start[0]][start[1]] = 2
+
+    # DFS ходит между узловыми клетками через одну клетку.
+    stack = [start]
+    visited = {start}
+    directions = [(-2, 0), (2, 0), (0, -2), (0, 2)]
+
+    while stack:
+        row, col = stack[-1]
+        unvisited_neighbors = []
+
+        for row_step, col_step in directions:
+            next_row = row + row_step
+            next_col = col + col_step
+            next_cell = (next_row, next_col)
+
+            if (
+                0 < next_row < height - 1
+                and 0 < next_col < width - 1
+                and next_cell not in visited
+            ):
+                unvisited_neighbors.append(next_cell)
+
+        if not unvisited_neighbors:
+            stack.pop()
+            continue
+
+        next_row, next_col = rng.choice(unvisited_neighbors)
+        wall_row = (row + next_row) // 2
+        wall_col = (col + next_col) // 2
+        grid[wall_row][wall_col] = 0
+        grid[next_row][next_col] = 0
+        visited.add((next_row, next_col))
+        stack.append((next_row, next_col))
+
+    # Случайно открываем часть внутренних стен, добавляя обходные пути.
+    for row in range(1, height - 1):
+        for col in range(1, width - 1):
+            if grid[row][col] == 1 and rng.random() < 0.5:
+                grid[row][col] = 0
+
+    maze = Maze(grid, start=start)
+
+    # Выходом становится самая удалённая от старта достижимая клетка.
+    distances = {start: 0}
+    queue = [start]
+    queue_index = 0
+
+    while queue_index < len(queue):
+        current_row, current_col = queue[queue_index]
+        queue_index += 1
+
+        for neighbor in maze.neighbors(current_row, current_col):
+            if neighbor not in distances:
+                distances[neighbor] = distances[(current_row, current_col)] + 1
+                queue.append(neighbor)
+
+    end = max(distances, key=distances.get)
+    grid[end[0]][end[1]] = 3
+    maze.set_end(end)
+    return maze
