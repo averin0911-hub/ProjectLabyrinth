@@ -133,12 +133,10 @@ def generate_maze(width: int, height: int, seed: int | None = None) -> Maze:
 
     rng = random.Random(seed)
     grid = [[1 for _ in range(width)] for _ in range(height)]
-    start_candidates = [
-        (row, col)
-        for row in range(1, height - 1, 2)
-        for col in range(1, width - 1, 2)
-    ]
-    start = rng.choice(start_candidates)
+    start = (
+        rng.randrange(1, height - 1, 2),
+        rng.randrange(1, width - 1, 2),
+    )
     grid[start[0]][start[1]] = 2
 
     # DFS ходит между узловыми клетками через одну клетку.
@@ -150,6 +148,7 @@ def generate_maze(width: int, height: int, seed: int | None = None) -> Maze:
         row, col = stack[-1]
         unvisited_neighbors = []
 
+        # Ищем соседние клетки, которые ещё не посещены.
         for row_step, col_step in directions:
             next_row = row + row_step
             next_col = col + col_step
@@ -177,26 +176,23 @@ def generate_maze(width: int, height: int, seed: int | None = None) -> Maze:
     # Случайно открываем часть внутренних стен, добавляя обходные пути.
     for row in range(1, height - 1):
         for col in range(1, width - 1):
-            if grid[row][col] == 1 and rng.random() < 0.5:
-                grid[row][col] = 0
+            if grid[row][col] == 1 and \
+                (grid[row - 1][col] == 0 and grid[row + 1][col] == 0 and \
+                    not (grid[row][col - 1] == 0 or grid[row][col + 1] == 0) or \
+                        grid[row][col - 1] == 0 and grid[row][col + 1] == 0 and \
+                            not (grid[row - 1][col] == 0 or grid[row +1][col] == 0)):
+                                grid[row][col] = random.randint(0, 1)
 
     maze = Maze(grid, start=start)
 
     # Выходом становится самая удалённая от старта достижимая клетка.
-    distances = {start: 0}
-    queue = [start]
-    queue_index = 0
+    end = rng.choice([
+        (row, col)
+        for row in range(1, height - 1)
+        for col in range(1, width - 1)
+        if grid[row][col] == 0
+    ])
 
-    while queue_index < len(queue):
-        current_row, current_col = queue[queue_index]
-        queue_index += 1
-
-        for neighbor in maze.neighbors(current_row, current_col):
-            if neighbor not in distances:
-                distances[neighbor] = distances[(current_row, current_col)] + 1
-                queue.append(neighbor)
-
-    end = max(distances, key=distances.get)
     grid[end[0]][end[1]] = 3
     maze.set_end(end)
     return maze
