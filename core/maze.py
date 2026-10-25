@@ -90,6 +90,7 @@ class Maze:
             raise ValueError("Недопустимая конечная точка")
 
         self.end = position
+        self.grid[row][col] = 3  # Отмечаем клетку как выход
 
     def neighbors(self, row: int, col: int) -> list[tuple[int, int]]:
         """Возвращает список свободных соседних клеток вокруг заданной позиции.
@@ -185,14 +186,25 @@ def generate_maze(width: int, height: int, seed: int | None = None) -> Maze:
 
     maze = Maze(grid, start=start)
 
-    # Выходом становится самая удалённая от старта достижимая клетка.
-    end = rng.choice([
-        (row, col)
+    # Манхэттенские расстояния до всех проходов.
+    distances = {
+        (row, col): abs(row - start[0]) + abs(col - start[1])
         for row in range(1, height - 1)
         for col in range(1, width - 1)
         if grid[row][col] == 0
+    }
+
+    # Желаемое минимальное манхэттенское расстояние от старта до выхода.
+    min_distance = max(2, (width + height) // 2)
+    # Ограничиваем порог максимальным расстоянием среди проходов,
+    # чтобы список кандидатов для rng.choice не оказался пустым.
+    min_distance = min(min_distance, max(distances.values()))
+
+    end = rng.choice([
+        cell
+        for cell, distance in distances.items()
+        if distance >= min_distance
     ])
 
-    grid[end[0]][end[1]] = 3
     maze.set_end(end)
     return maze
