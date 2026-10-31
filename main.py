@@ -45,7 +45,7 @@ def show_maze(
             elif maze[row, col] == 1:
                 symbol = "#"
             elif cell in path_cells:
-                symbol = "*"
+                symbol = "0"
             elif cell in visited_cells:
                 symbol = "."
             else:
