@@ -6,6 +6,7 @@ import weakref
 from unittest.mock import patch
 
 import main
+from core.algorithms.a_star import A_star
 from core.algorithms.bfs import bfs
 from core.algorithms.dijkstra import dijkstra
 from core.maze import Maze
@@ -34,7 +35,7 @@ class ComparisonTests(unittest.TestCase):
         maze = Maze([[2, 0]], end=(0, 1))
         calls = []
         references = []
-        times = iter([12.0, 33.0])
+        times = iter([12.0, 33.0, 5.0])
 
         def measure(field, algorithm):
             self.assertIs(field, maze)
@@ -52,11 +53,12 @@ class ComparisonTests(unittest.TestCase):
         ):
             main.compare_algorithms(maze)
 
-        self.assertEqual(calls, [bfs, dijkstra])
+        self.assertEqual(calls, [bfs, dijkstra, A_star])
         self.assertTrue(all(reference() is None for reference in references))
         rows = [line.split() for line in output.getvalue().splitlines()]
         self.assertIn(["BFS", "1", "2", "12.000"], rows)
         self.assertIn(["Дейкстра", "1", "2", "33.000"], rows)
+        self.assertIn(["A*", "1", "2", "5.000"], rows)
         self.assertIn("Всего клеток: 2; проходимых: 2", output.getvalue())
 
     def test_timer_excludes_rendering(self):

@@ -3,6 +3,7 @@ from time import perf_counter
 
 from core.algorithms.bfs import bfs
 from core.algorithms.dijkstra import dijkstra
+from core.algorithms.a_star import A_star
 from core.maze import Maze, generate_maze
 
 
@@ -97,7 +98,7 @@ def compare_algorithms(maze: Maze) -> None:
     print(f"Всего клеток: {maze.rows * maze.cols}; проходимых: {free_cells}")
     print(f"Старт: {maze.start}; выход: {maze.end}")
 
-    for name, algorithm in (("BFS", bfs), ("Дейкстра", dijkstra)):
+    for name, algorithm in (("BFS", bfs), ("Дейкстра", dijkstra), ("A*", A_star)):
         try:
             result, elapsed_ms = measure_algorithm(maze, algorithm)
         except ValueError as error:
@@ -120,7 +121,7 @@ def compare_algorithms(maze: Maze) -> None:
         )
     print("Обработано клеток — число уникальных извлечённых клеток, включая старт и выход.")
     print("Время включает поиск и сбор результата; генерация и печать не учитываются.")
-    print("Все шаги стоят 1: оба алгоритма находят кратчайший путь.")
+    print("Все шаги стоят 1: все три алгоритма находят кратчайший путь.")
     print("При равных расстояниях порядок обработки клеток может отличаться.")
 
 
@@ -133,9 +134,10 @@ def main() -> None:
         while True:
             print("\n1 — Поиск в ширину (BFS)")
             print("2 — Алгоритм Дейкстры")
-            print("3 — Сравнить оба алгоритма")
+            print("3 — Алгоритм A*")
             print("4 — Сгенерировать новый лабиринт")
             print("5 — Показать исходный лабиринт")
+            print("6 — Сравнить все алгоритмы")
             print("0 — Выход")
             choice = input("Выберите действие: ").strip()
 
@@ -146,7 +148,7 @@ def main() -> None:
             elif choice == "2":
                 run_algorithm(maze, "Дейкстра", dijkstra)
             elif choice == "3":
-                compare_algorithms(maze)
+                run_algorithm(maze, "A*", A_star)
             elif choice == "4":
                 width = read_size("Ширина")
                 height = read_size("Высота")
@@ -154,8 +156,10 @@ def main() -> None:
                 show_maze(maze)
             elif choice == "5":
                 show_maze(maze)
+            elif choice == "6":
+                compare_algorithms(maze)
             else:
-                print("Неизвестный пункт меню. Введите число от 0 до 5.")
+                print("Неизвестный пункт меню. Введите число от 0 до 6.")
     except (EOFError, KeyboardInterrupt):
         print()
     print("Программа завершена.")
