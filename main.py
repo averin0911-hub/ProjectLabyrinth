@@ -2,6 +2,7 @@ from collections.abc import Callable
 from time import perf_counter
 
 from core.algorithms.bfs import bfs
+from core.algorithms.bidirectional_bfs import bidirectional_bfs
 from core.algorithms.dijkstra import dijkstra
 from core.algorithms.a_star import A_star
 from core.maze import Maze, generate_maze
@@ -55,7 +56,7 @@ def show_maze(
         print(" ".join(line))
     print("# — стена, S — старт, E — выход, пробел — проход")
     if path is not None:
-        print("* — найденный путь, . — обработанная клетка вне пути")
+        print("0 — найденный путь, . — обработанная клетка вне пути")
     print(f"Старт: {maze.start}; выход: {maze.end}")
     print("Координаты: (строка, столбец), отсчёт с нуля.")
 
@@ -98,30 +99,36 @@ def compare_algorithms(maze: Maze) -> None:
     print(f"Всего клеток: {maze.rows * maze.cols}; проходимых: {free_cells}")
     print(f"Старт: {maze.start}; выход: {maze.end}")
 
-    for name, algorithm in (("BFS", bfs), ("Дейкстра", dijkstra), ("A*", A_star)):
+    algorithms = (
+        ("BFS", bfs),
+        ("Двунаправленный BFS", bidirectional_bfs),
+        ("Дейкстра", dijkstra),
+        ("A*", A_star),
+    )
+
+    for name, algorithm in algorithms:
         try:
             result, elapsed_ms = measure_algorithm(maze, algorithm)
         except ValueError as error:
             print(f"{name}: {error}")
             return
-        # Сохраняем только числа и освобождаем полный результат перед следующим поиском.
         measurements.append(
             (name, result["distance"], result["visited_count"], elapsed_ms)
         )
         del result
 
     print(
-        f"{'Алгоритм':<12} {'Длина пути':>12} {'Обработано клеток':>19} "
+        f"{'Алгоритм':<21} {'Длина пути':>12} {'Обработано клеток':>19} "
         f"{'Время, мс':>13}"
     )
     for name, distance, visited_count, elapsed_ms in measurements:
         print(
-            f"{name:<12} {distance:>12} {visited_count:>19} "
+            f"{name:<21} {distance:>12} {visited_count:>19} "
             f"{elapsed_ms:>13.3f}"
         )
     print("Обработано клеток — число уникальных извлечённых клеток, включая старт и выход.")
     print("Время включает поиск и сбор результата; генерация и печать не учитываются.")
-    print("Все шаги стоят 1: все три алгоритма находят кратчайший путь.")
+    print("Все шаги стоят 1: все алгоритмы находят кратчайший путь.")
     print("При равных расстояниях порядок обработки клеток может отличаться.")
 
 
@@ -133,11 +140,12 @@ def main() -> None:
     try:
         while True:
             print("\n1 — Поиск в ширину (BFS)")
-            print("2 — Алгоритм Дейкстры")
-            print("3 — Алгоритм A*")
-            print("4 — Сгенерировать новый лабиринт")
-            print("5 — Показать исходный лабиринт")
-            print("6 — Сравнить все алгоритмы")
+            print("2 — Двунаправленный BFS")
+            print("3 — Алгоритм Дейкстры")
+            print("4 — Алгоритм A*")
+            print("5 — Сгенерировать новый лабиринт")
+            print("6 — Показать исходный лабиринт")
+            print("7 — Сравнить все алгоритмы")
             print("0 — Выход")
             choice = input("Выберите действие: ").strip()
 
@@ -146,24 +154,26 @@ def main() -> None:
             if choice == "1":
                 run_algorithm(maze, "BFS", bfs)
             elif choice == "2":
-                run_algorithm(maze, "Дейкстра", dijkstra)
+                run_algorithm(maze, "Двунаправленный BFS", bidirectional_bfs)
             elif choice == "3":
-                run_algorithm(maze, "A*", A_star)
+                run_algorithm(maze, "Дейкстра", dijkstra)
             elif choice == "4":
+                run_algorithm(maze, "A*", A_star)
+            elif choice == "5":
                 width = read_size("Ширина")
                 height = read_size("Высота")
                 maze = generate_maze(width, height)
                 show_maze(maze)
-            elif choice == "5":
-                show_maze(maze)
             elif choice == "6":
+                show_maze(maze)
+            elif choice == "7":
                 compare_algorithms(maze)
             else:
-                print("Неизвестный пункт меню. Введите число от 0 до 6.")
+                print("Неизвестный пункт меню. Введите число от 0 до 7.")
     except (EOFError, KeyboardInterrupt):
         print()
     print("Программа завершена.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
