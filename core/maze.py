@@ -182,7 +182,7 @@ def generate_maze(width: int, height: int, seed: int | None = None) -> Maze:
                     not (grid[row][col - 1] == 0 or grid[row][col + 1] == 0) or \
                         grid[row][col - 1] == 0 and grid[row][col + 1] == 0 and \
                             not (grid[row - 1][col] == 0 or grid[row +1][col] == 0)):
-                                grid[row][col] = random.randint(0, 1)
+                                grid[row][col] = rng.randint(0, 1)
 
     maze = Maze(grid, start=start)
 
