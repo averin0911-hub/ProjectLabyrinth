@@ -3,6 +3,7 @@ from time import perf_counter
 
 from core.algorithms.bfs import bfs
 from core.algorithms.bidirectional_bfs import bidirectional_bfs
+from core.algorithms.dfs import dfs
 from core.algorithms.dijkstra import dijkstra
 from core.algorithms.a_star import A_star
 from core.maze import Maze, generate_maze
@@ -104,6 +105,7 @@ def compare_algorithms(maze: Maze) -> None:
         ("Двунаправленный BFS", bidirectional_bfs),
         ("Дейкстра", dijkstra),
         ("A*", A_star),
+        ("DFS", dfs),
     )
 
     for name, algorithm in algorithms:
@@ -128,7 +130,7 @@ def compare_algorithms(maze: Maze) -> None:
         )
     print("Обработано клеток — число уникальных извлечённых клеток, включая старт и выход.")
     print("Время включает поиск и сбор результата; генерация и печать не учитываются.")
-    print("Все шаги стоят 1: все алгоритмы находят кратчайший путь.")
+    print("Все шаги стоят 1; BFS, Дейкстра и A* гарантируют кратчайший путь, DFS находит первый попавшийся.")
     print("При равных расстояниях порядок обработки клеток может отличаться.")
 
 
@@ -141,11 +143,12 @@ def main() -> None:
         while True:
             print("\n1 — Поиск в ширину (BFS)")
             print("2 — Двунаправленный BFS")
-            print("3 — Алгоритм Дейкстры")
-            print("4 — Алгоритм A*")
-            print("5 — Сгенерировать новый лабиринт")
-            print("6 — Показать исходный лабиринт")
-            print("7 — Сравнить все алгоритмы")
+            print("3 — Поиск в глубину (DFS)")
+            print("4 — Алгоритм Дейкстры")
+            print("5 — Алгоритм A*")
+            print("6 — Сгенерировать новый лабиринт")
+            print("7 — Показать исходный лабиринт")
+            print("8 — Сравнить все алгоритмы")
             print("0 — Выход")
             choice = input("Выберите действие: ").strip()
 
@@ -156,20 +159,22 @@ def main() -> None:
             elif choice == "2":
                 run_algorithm(maze, "Двунаправленный BFS", bidirectional_bfs)
             elif choice == "3":
-                run_algorithm(maze, "Дейкстра", dijkstra)
+                run_algorithm(maze, "DFS", dfs)
             elif choice == "4":
-                run_algorithm(maze, "A*", A_star)
+                run_algorithm(maze, "Дейкстра", dijkstra)
             elif choice == "5":
+                run_algorithm(maze, "A*", A_star)
+            elif choice == "6":
                 width = read_size("Ширина")
                 height = read_size("Высота")
                 maze = generate_maze(width, height)
                 show_maze(maze)
-            elif choice == "6":
-                show_maze(maze)
             elif choice == "7":
+                show_maze(maze)
+            elif choice == "8":
                 compare_algorithms(maze)
             else:
-                print("Неизвестный пункт меню. Введите число от 0 до 7.")
+                print("Неизвестный пункт меню. Введите число от 0 до 8.")
     except (EOFError, KeyboardInterrupt):
         print()
     print("Программа завершена.")
