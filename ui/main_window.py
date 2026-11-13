@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QWidget,
     QPushButton,
     QScrollArea,
+    QComboBox,
 )
 from PyQt6.QtCore import Qt
 from core.maze import generate_maze
@@ -97,6 +98,29 @@ class MainWindow(QMainWindow):
 
         # При изменении числа передаём его методу поля.
         self.zoom_input.valueChanged.connect(self.canvas.set_zoom)
+
+        editor_box = QGroupBox("Редактор")
+        editor_layout = QFormLayout(editor_box)
+
+        self.edit_mode_input = QComboBox()
+        self.edit_mode_input.addItems(["Стены / проходы", "Старт", "Выход"])
+        editor_layout.addRow("Инструмент:", self.edit_mode_input)
+
+        # Передаём название выбранного инструмента полю.
+        self.edit_mode_input.currentTextChanged.connect(
+            self.canvas.set_edit_mode
+        )
+
+        clear_button = QPushButton("Очистить поле")
+        clear_button.clicked.connect(self.canvas.clear_maze)
+        editor_layout.addRow(clear_button)
+
+        undo_button = QPushButton("Откатить клетку")
+        undo_button.clicked.connect(self.canvas.undo_last_change)
+        editor_layout.addRow(undo_button)
+
+        # Вставляем редактор после параметров, перед пустым местом.
+        self.controls_layout.insertWidget(1, editor_box)
 
         # Создаём и показываем начальный лабиринт.
         self.generate_new_maze()
