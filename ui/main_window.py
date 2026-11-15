@@ -18,6 +18,11 @@ from core.maze import generate_maze
 from ui.canvas import MazeCanvas
 import json
 from core.storage import load_maze
+from core.algorithms.bfs import bfs
+from core.algorithms.bidirectional_bfs import bidirectional_bfs
+from core.algorithms.dijkstra import dijkstra
+from core.algorithms.a_star import A_star
+from core.algorithms.dfs import dfs
 
 
 class MainWindow(QMainWindow):
@@ -147,6 +152,24 @@ class MainWindow(QMainWindow):
 
         # Размещаем блок после редактора.
         self.controls_layout.insertWidget(2, files_box)
+
+
+        algorithm_box = QGroupBox("Алгоритм")
+        algorithm_layout = QVBoxLayout(algorithm_box)
+
+        self.algorithm_input = QComboBox()
+
+        # Каждый пункт хранит название и соответствующую функцию.
+        self.algorithm_input.addItem("BFS", bfs)
+        self.algorithm_input.addItem("Двунаправленный BFS", bidirectional_bfs)
+        self.algorithm_input.addItem("Дейкстра", dijkstra)
+        self.algorithm_input.addItem("A*", A_star)
+        self.algorithm_input.addItem("DFS", dfs)
+
+        algorithm_layout.addWidget(self.algorithm_input)
+
+        # Размещаем выбор алгоритма сразу после параметров.
+        self.controls_layout.insertWidget(1, algorithm_box)
 
         # Создаём и показываем начальный лабиринт.
         self.generate_new_maze()
