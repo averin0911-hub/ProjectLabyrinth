@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QMessageBox,
+    QLabel
 )
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtCore import Qt
@@ -23,6 +24,7 @@ from core.algorithms.bidirectional_bfs import bidirectional_bfs
 from core.algorithms.dijkstra import dijkstra
 from core.algorithms.a_star import A_star
 from core.algorithms.dfs import dfs
+from time import perf_counter
 
 
 class MainWindow(QMainWindow):
@@ -168,8 +170,22 @@ class MainWindow(QMainWindow):
 
         algorithm_layout.addWidget(self.algorithm_input)
 
+        run_button = QPushButton("Запустить")
+        run_button.clicked.connect(self.run_selected_algorithm)
+        algorithm_layout.addWidget(run_button)
+
         # Размещаем выбор алгоритма сразу после параметров.
         self.controls_layout.insertWidget(1, algorithm_box)
+
+        # Справа показываем результат последнего запуска.
+        self.results_panel.setTitle("Последний запуск")
+
+        self.stats_label = QLabel("Алгоритм ещё не запускался")
+        self.stats_label.setWordWrap(True)
+
+        results_layout = QVBoxLayout(self.results_panel)
+        results_layout.addWidget(self.stats_label)
+        results_layout.addStretch()
 
         # Создаём и показываем начальный лабиринт.
         self.generate_new_maze()
@@ -252,4 +268,33 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage(
             f"Загружен лабиринт: {maze.cols} × {maze.rows}"
+        )
+
+
+
+
+    def run_selected_algorithm(self):
+        if self.maze is None:
+            return
+
+        # Получаем функцию и название выбранного алгоритма.
+        algorithm = self.algorithm_input.currentData()
+        name = self.algorithm_input.currentText()
+
+        started = perf_counter()
+
+        try:
+            result = algorithm(self.maze)
+        except ValueError as error:
+            self.stats_label.setText(f"Алгоритм: {name}\n{error}")
+            return
+
+        # Переводим длительность из секунд в миллисекунды.
+        elapsed_ms = (perf_counter() - started) * 1000
+
+        self.stats_label.setText(
+            f"Алгоритм: {name}\n"
+            f"Длина пути: {result['distance']} шагов\n"
+            f"Обработано клеток: {result['visited_count']}\n"
+            f"Время: {elapsed_ms:.3f} мс"
         )
