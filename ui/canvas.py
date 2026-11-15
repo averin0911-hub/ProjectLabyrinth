@@ -19,10 +19,14 @@ class MazeCanvas(QWidget):
 
         self.history = []  # История изменений.
 
+        self.path_cells = set()
+        self.visited_cells = set()
+
     def set_maze(self, maze):
         # Новый лабиринт начинает новую историю; масштаб её сохраняет.
         if maze is not self.maze:
             self.history.clear()
+            self.clear_search_result()
 
         self.drag_value = None
         self.last_cell = None
@@ -69,13 +73,17 @@ class MazeCanvas(QWidget):
                 position = (row, col)
 
                 if position == self.maze.start:
-                    color = "#22c55e"  # Старт — зелёный.
+                    color = "#22c55e"  # Старт.
                 elif position == self.maze.end:
-                    color = "#ef4444"  # Выход — красный.
+                    color = "#ef4444"  # Выход.
                 elif self.maze[row, col] == 1:
-                    color = "#1e293b"  # Стена — тёмная.
+                    color = "#1e293b"  # Стена.
+                elif position in self.path_cells:
+                    color = "#fde047"  # Найденный путь.
+                elif position in self.visited_cells:
+                    color = "#60a5fa"  # Обработанная клетка.
                 else:
-                    color = "#ffffff"  # Проход — белый.
+                    color = "#ffffff"  # Проход.
 
                 # Столбец задаёт x, строка задаёт y.
                 painter.fillRect(
@@ -209,6 +217,7 @@ class MazeCanvas(QWidget):
 
 
     def remember_change(self, row, col):
+        self.clear_search_result()
         # Сохраняем значение клетки и положение маркеров.
         self.history.append((
             row, col, self.maze[row, col],
@@ -218,6 +227,8 @@ class MazeCanvas(QWidget):
     def undo_last_change(self):
         if self.maze is None or not self.history:
             return
+
+        self.clear_search_result()
 
         self.drag_value = None
         self.last_cell = None
@@ -250,6 +261,8 @@ class MazeCanvas(QWidget):
         if self.maze is None:
             return
 
+        self.clear_search_result()
+
         self.drag_value = None
         self.last_cell = None
 
@@ -265,3 +278,17 @@ class MazeCanvas(QWidget):
                     self.maze.grid[row][col] = 0
 
         self.update()
+
+
+    def show_result(self, result):
+        # Сохраняем координаты для подсветки.
+        self.path_cells = set(result["path"])
+        self.visited_cells = set(result["visited_order"])
+        self.update()
+
+    def clear_search_result(self):
+        # Убираем подсветку прежнего поиска.
+        if self.path_cells or self.visited_cells:
+            self.path_cells.clear()
+            self.visited_cells.clear()
+            self.update()

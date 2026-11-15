@@ -281,6 +281,9 @@ class MainWindow(QMainWindow):
         algorithm = self.algorithm_input.currentData()
         name = self.algorithm_input.currentText()
 
+        self.canvas.clear_search_result()
+        started = perf_counter()
+
         started = perf_counter()
 
         try:
@@ -291,6 +294,9 @@ class MainWindow(QMainWindow):
 
         # Переводим длительность из секунд в миллисекунды.
         elapsed_ms = (perf_counter() - started) * 1000
+
+        # Подсветка не входит в измеренное время поиска.
+        self.canvas.show_result(result)
 
         self.stats_label.setText(
             f"Алгоритм: {name}\n"
