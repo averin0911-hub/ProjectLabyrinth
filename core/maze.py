@@ -39,6 +39,13 @@ class Maze:
         """Проверяет, находится ли клетка внутри лабиринта."""
         return 0 <= row < self.rows and 0 <= col < self.cols
 
+    def is_border(self, row: int, col: int) -> bool:
+        """Проверяет, находится ли клетка на внешней рамке."""
+        return (
+            row in (0, self.rows - 1)
+            or col in (0, self.cols - 1)
+        )
+
     def is_free(self, row: int, col: int) -> bool:
         """Проверяет, является ли клетка проходом и не выходит за границы.
 

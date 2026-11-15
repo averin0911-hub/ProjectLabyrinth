@@ -110,7 +110,8 @@ class MazeCanvas(QWidget):
         if not self.maze.in_bounds(row, col):
             return
 
-        if not self.maze.in_bounds(row, col):
+        # Внешнюю рамку изменять нельзя.
+        if self.maze.is_border(row, col):
             return
 
         # Старт и выход можно ставить только на проходы.
@@ -187,6 +188,10 @@ class MazeCanvas(QWidget):
             r = round(old_row + (row - old_row) * step / steps)
             c = round(old_col + (col - old_col) * step / steps)
 
+            # Пропускаем клетки внешней рамки.
+            if self.maze.is_border(r, c):
+                continue
+
             if (r, c) not in (self.maze.start, self.maze.end):
                 # Не записываем повторное закрашивание тем же значением.
                 if self.maze[r, c] != self.drag_value:
@@ -251,6 +256,10 @@ class MazeCanvas(QWidget):
         # Убираем стены, сохраняя каждую для возможного отката.
         for row in range(self.maze.rows):
             for col in range(self.maze.cols):
+                # Внешнюю рамку сохраняем.
+                if self.maze.is_border(row, col):
+                    continue
+
                 if self.maze[row, col] == 1:
                     self.remember_change(row, col)
                     self.maze.grid[row][col] = 0
