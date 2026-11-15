@@ -16,6 +16,7 @@ from PyQt6.QtCore import Qt
 from core.maze import generate_maze
 from ui.canvas import MazeCanvas
 import json
+from core.storage import load_maze
 
 
 class MainWindow(QMainWindow):
@@ -128,6 +129,12 @@ class MainWindow(QMainWindow):
         files_box = QGroupBox("Файлы")
         files_layout = QVBoxLayout(files_box)
 
+
+        load_button = QPushButton("Загрузить из файла")
+        load_button.clicked.connect(self.load_maze_from_file)
+        files_layout.addWidget(load_button)
+
+
         save_button = QPushButton("Сохранить в файл")
         save_button.clicked.connect(self.save_maze_to_file)
         files_layout.addWidget(save_button)
@@ -187,3 +194,33 @@ class MainWindow(QMainWindow):
             return
 
         self.statusBar().showMessage("Лабиринт сохранён")
+
+
+    def load_maze_from_file(self):
+        # Выбираем существующий файл.
+        filename, _ = QFileDialog.getOpenFileName(
+            self,
+            "Загрузить лабиринт",
+            "",
+            "Файлы JSON (*.json)",
+        )
+
+        if not filename:
+            return
+
+        try:
+            maze = load_maze(filename)
+        except (OSError, ValueError, RecursionError) as error:
+            QMessageBox.warning(self, "Ошибка загрузки", str(error))
+            return
+
+        # Заменяем текущее поле только после успешной проверки.
+        self.maze = maze
+        self.canvas.set_maze(maze)
+
+        self.width_input.setValue(maze.cols)
+        self.height_input.setValue(maze.rows)
+
+        self.statusBar().showMessage(
+            f"Загружен лабиринт: {maze.cols} × {maze.rows}"
+        )
