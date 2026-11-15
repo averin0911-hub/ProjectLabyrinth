@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QMessageBox,
 )
+from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtCore import Qt
 from core.maze import generate_maze
 from ui.canvas import MazeCanvas
@@ -119,9 +120,14 @@ class MainWindow(QMainWindow):
         clear_button.clicked.connect(self.canvas.clear_maze)
         editor_layout.addRow(clear_button)
 
-        undo_button = QPushButton("Откатить клетку")
+        undo_button = QPushButton("Откатить клетку (Ctrl+Z)")
+
         undo_button.clicked.connect(self.canvas.undo_last_change)
         editor_layout.addRow(undo_button)
+
+        # Напрямую связываем Ctrl+Z с методом отката.
+        self.undo_shortcut = QShortcut(QKeySequence("Ctrl+Z"), self)
+        self.undo_shortcut.activated.connect(self.canvas.undo_last_change)
 
         # Вставляем редактор после параметров, перед пустым местом.
         self.controls_layout.insertWidget(1, editor_box)
