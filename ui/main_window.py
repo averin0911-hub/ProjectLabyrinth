@@ -9,10 +9,13 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QComboBox,
+    QFileDialog,
+    QMessageBox,
 )
 from PyQt6.QtCore import Qt
 from core.maze import generate_maze
 from ui.canvas import MazeCanvas
+import json
 
 
 class MainWindow(QMainWindow):
@@ -122,6 +125,16 @@ class MainWindow(QMainWindow):
         # Вставляем редактор после параметров, перед пустым местом.
         self.controls_layout.insertWidget(1, editor_box)
 
+        files_box = QGroupBox("Файлы")
+        files_layout = QVBoxLayout(files_box)
+
+        save_button = QPushButton("Сохранить в файл")
+        save_button.clicked.connect(self.save_maze_to_file)
+        files_layout.addWidget(save_button)
+
+        # Размещаем блок после редактора.
+        self.controls_layout.insertWidget(2, files_box)
+
         # Создаём и показываем начальный лабиринт.
         self.generate_new_maze()
 
@@ -136,3 +149,41 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             f"Сгенерирован лабиринт: {self.maze.cols} × {self.maze.rows}"
         )
+
+
+    def save_maze_to_file(self):
+        if self.maze is None:
+            return
+
+        # Открываем окно выбора имени и места сохранения.
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Сохранить лабиринт",
+            "labyrinth.json",
+            "Файлы JSON (*.json)",
+        )
+
+        # Пользователь нажал «Отмена».
+        if not filename:
+            return
+
+        data = {
+            "version": 1,
+            "grid": self.maze.grid,
+            "start": self.maze.start,
+            "end": self.maze.end,
+        }
+
+        try:
+            # Записываем данные без лишних пробелов.
+            with open(filename, "w", encoding="utf-8") as file:
+                json.dump(data, file, separators=(",", ":"))
+        except OSError as error:
+            QMessageBox.warning(
+                self,
+                "Ошибка сохранения",
+                f"Не удалось сохранить файл:\n{error}",
+            )
+            return
+
+        self.statusBar().showMessage("Лабиринт сохранён")
