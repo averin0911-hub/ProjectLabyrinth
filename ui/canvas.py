@@ -28,7 +28,7 @@ class MazeCanvas(QWidget):
         self.animation_index = 0      # Номер следующего шага.
 
         self.animation_timer = QTimer(self)
-        self.animation_timer.setInterval(100)  # Пауза между шагами — 100 мс.
+        self.animation_timer.setInterval(0)  # Пауза между шагами — 100 мс.
         self.animation_timer.timeout.connect(self.animation_step)
 
         
@@ -94,7 +94,7 @@ class MazeCanvas(QWidget):
                 elif position in self.visited_cells:
                     color = "#60a5fa"  # Обработанная клетка.
                 elif position in self.open_cells:
-                    color = "#c084fc"  # Открытая клетка.
+                    color = "#7c3aed"  # Открытая клетка.
                 else:
                     color = "#ffffff"  # Проход.
 
@@ -369,11 +369,11 @@ class MazeCanvas(QWidget):
 
 
     def apply_search_event(self, action, position):
-        if action == "open":
-            # Клетка появилась в очереди.
-            self.open_cells.add(position)
+        if action in ("open", "open_start", "open_end"):
+            # Обработанная клетка сохраняет голубой цвет.
+            if position not in self.visited_cells:
+                self.open_cells.add(position)
 
-        elif action == "closed":
-            # Переносим клетку из открытого списка в закрытый.
+        elif action in ("closed", "closed_start", "closed_end"):
             self.open_cells.discard(position)
             self.visited_cells.add(position)

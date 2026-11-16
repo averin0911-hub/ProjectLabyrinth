@@ -78,14 +78,18 @@ class A_STAR:
         if not self.maze.is_free(*end_cell):
             raise ValueError("Конечная клетка недопустима")
 
+        events = [("open", start_cell)]
+
         # Если старт совпадает с финишем, сразу возвращаем результат.
         if start_cell == end_cell:
+            events.append(("closed", start_cell))
             return {
                 "distance": 0,
                 "steps": 0,
                 "path": [start_cell],
                 "visited_order": [start_cell],
                 "visited_count": 1,
+                "events": events,
                 "start": start_cell,
                 "end": end_cell,
             }
@@ -118,6 +122,7 @@ class A_STAR:
 
             visited_set.add(current)
             visited_order.append(current)
+            events.append(("closed", current))
 
             # Если дошли до цели — можно прекращать поиск.
             if current == end_cell:
@@ -130,6 +135,10 @@ class A_STAR:
 
                 # Для одной клетки h неизменно: меньшая f означает более короткий путь.
                 if neighbor not in f_scores or candidate_f_score < f_scores[neighbor]:
+                    # Открытие записываем только при первом обнаружении.
+                    if neighbor not in f_scores:
+                        events.append(("open", neighbor))
+
                     f_scores[neighbor] = candidate_f_score
                     previous[neighbor] = current
                     heappush(queue, (candidate_f_score, candidate_distance, neighbor))
@@ -156,6 +165,7 @@ class A_STAR:
             "path": path,
             "visited_order": visited_order,
             "visited_count": len(visited_order),
+            "events": events,
             "start": start_cell,
             "end": end_cell,
         }

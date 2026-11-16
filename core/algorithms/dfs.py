@@ -71,14 +71,18 @@ class DFS:
         if not self.maze.is_free(*end_cell):
             raise ValueError("Конечная клетка недопустима")
 
+        events = [("open", start_cell)]
+
         # Если старт совпадает с финишем, возвращаем нулевой путь.
         if start_cell == end_cell:
+            events.append(("closed", start_cell))
             return {
                 "distance": 0,
                 "steps": 0,
                 "path": [start_cell],
                 "visited_order": [start_cell],
                 "visited_count": 1,
+                "events": events,
                 "start": start_cell,
                 "end": end_cell,
             }
@@ -95,6 +99,7 @@ class DFS:
             # Снимаем последнюю добавленную клетку с вершины стека.
             current = stack.pop()
             visited_order.append(current)
+            events.append(("closed", current))
 
             # Если наткнулись на финиш — прекращаем поиск.
             if current == end_cell:
@@ -106,6 +111,7 @@ class DFS:
                     visited_set.add(neighbor)
                     previous[neighbor] = current
                     stack.append(neighbor)
+                    events.append(("open", neighbor))
 
         # Если до выхода так и не дошли — пути нет.
         if end_cell not in previous:
@@ -128,6 +134,7 @@ class DFS:
             "path": path,
             "visited_order": visited_order,
             "visited_count": len(visited_order),
+            "events": events,
             "start": start_cell,
             "end": end_cell,
         }

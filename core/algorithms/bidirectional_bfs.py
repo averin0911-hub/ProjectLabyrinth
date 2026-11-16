@@ -74,17 +74,23 @@ class BidirectionalBFS:
         if not self.maze.is_free(*end_cell):
             raise ValueError("Конечная клетка недопустима")
 
+        events = [("open_start", start_cell)]
+
         # Если старт совпадает с финишем, возвращаем нулевой путь.
         if start_cell == end_cell:
+            events.append(("closed_start", start_cell))
             return {
                 "distance": 0,
                 "steps": 0,
                 "path": [start_cell],
                 "visited_order": [start_cell],
                 "visited_count": 1,
+                "events": events,
                 "start": start_cell,
                 "end": end_cell,
             }
+
+        events.append(("open_end", end_cell))
 
         # Очереди и словари предков для каждого из двух направлений.
         queue_start: deque[tuple[int, int]] = deque([start_cell])
@@ -106,6 +112,7 @@ class BidirectionalBFS:
             if len(queue_start) <= len(queue_end):
                 current = queue_start.popleft()
                 visited_order.append(current)
+                events.append(("closed_start", current))
 
                 if current in visited_end:
                     meeting_cell = current
@@ -117,6 +124,7 @@ class BidirectionalBFS:
                         visited_start.add(neighbor)
                         previous_start[neighbor] = current
                         queue_start.append(neighbor)
+                        events.append(("open_start", neighbor))
 
                         # Пересечение с обратным волновым фронтом.
                         if neighbor in visited_end:
@@ -128,6 +136,7 @@ class BidirectionalBFS:
             else:
                 current = queue_end.popleft()
                 visited_order.append(current)
+                events.append(("closed_end", current))
 
                 if current in visited_start:
                     meeting_cell = current
@@ -139,6 +148,7 @@ class BidirectionalBFS:
                         visited_end.add(neighbor)
                         previous_end[neighbor] = current
                         queue_end.append(neighbor)
+                        events.append(("open_end", neighbor))
 
                         # Пересечение с прямым волновым фронтом.
                         if neighbor in visited_start:
@@ -150,9 +160,6 @@ class BidirectionalBFS:
 
         if not found or meeting_cell is None:
             raise ValueError("Путь до выхода не существует")
-
-        if meeting_cell not in visited_order:
-            visited_order.append(meeting_cell)
 
         # Собираем первую половину пути: от старта до точки встречи.
         path_from_start: list[tuple[int, int]] = []
@@ -178,6 +185,7 @@ class BidirectionalBFS:
             "path": path,
             "visited_order": visited_order,
             "visited_count": len(visited_order),
+            "events": events,
             "start": start_cell,
             "end": end_cell,
         }
