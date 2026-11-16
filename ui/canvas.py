@@ -383,3 +383,24 @@ class MazeCanvas(QWidget):
     def set_animation_interval(self, milliseconds):
         # Меняем задержку, сохраняя текущий шаг анимации.
         self.animation_timer.setInterval(milliseconds)
+
+
+
+    def toggle_animation_pause(self):
+        if self.animation_result is None:
+            return
+
+        result = self.animation_result
+
+        # Получаем шаги поиска и учитываем последующую подсветку пути.
+        search_steps = result.get("events", result["visited_order"])
+        total = len(search_steps) + len(result["path"])
+
+        # Завершённую анимацию повторно не запускаем.
+        if self.animation_index >= total:
+            return
+
+        if self.animation_timer.isActive():
+            self.animation_timer.stop()   # Пауза.
+        else:
+            self.animation_timer.start()  # Продолжение.

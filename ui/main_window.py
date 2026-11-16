@@ -203,6 +203,10 @@ class MainWindow(QMainWindow):
         run_button.clicked.connect(self.run_selected_algorithm)
         algorithm_layout.addWidget(run_button)
 
+        pause_button = QPushButton("Пауза / Продолжить")
+        pause_button.clicked.connect(self.canvas.toggle_animation_pause)
+        algorithm_layout.addWidget(pause_button)
+
         # Размещаем выбор алгоритма сразу после параметров.
         self.controls_layout.insertWidget(1, algorithm_box)
 
