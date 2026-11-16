@@ -178,7 +178,11 @@ class MainWindow(QMainWindow):
         algorithm_layout.addWidget(self.algorithm_input)
 
         self.playback_mode_input = QComboBox()
-        self.playback_mode_input.addItems(["Анимация", "Мгновенно"])
+        self.playback_mode_input.addItems([
+            "Анимация",
+            "Пошагово",
+            "Мгновенно",
+        ])
         algorithm_layout.addWidget(self.playback_mode_input)
 
         self.animation_delay_input = QSpinBox()
@@ -202,6 +206,10 @@ class MainWindow(QMainWindow):
         run_button = QPushButton("Запустить")
         run_button.clicked.connect(self.run_selected_algorithm)
         algorithm_layout.addWidget(run_button)
+
+        step_button = QPushButton("Шаг")
+        step_button.clicked.connect(self.canvas.make_manual_step)
+        algorithm_layout.addWidget(step_button)
 
         pause_button = QPushButton("Пауза / Продолжить")
         pause_button.clicked.connect(self.canvas.toggle_animation_pause)
@@ -335,9 +343,12 @@ class MainWindow(QMainWindow):
         # Переводим длительность из секунд в миллисекунды.
         elapsed_ms = (perf_counter() - started) * 1000
 
-        # Подсветка не входит в измеренное время поиска.
-        if self.playback_mode_input.currentText() == "Анимация":
+        mode = self.playback_mode_input.currentText()
+
+        if mode == "Анимация":
             self.canvas.start_animation(result)
+        elif mode == "Пошагово":
+            self.canvas.start_animation(result, autoplay=False)
         else:
             self.canvas.show_result(result)
 

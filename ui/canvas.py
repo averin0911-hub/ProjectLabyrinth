@@ -304,12 +304,18 @@ class MazeCanvas(QWidget):
         self.visited_cells = set(result["visited_order"])
         self.update()
 
-    def start_animation(self, result):
+    def start_animation(self, result, autoplay=True):
         self.clear_search_result()
-
-        # Сохраняем результат и запускаем таймер.
         self.animation_result = result
-        self.animation_timer.start()
+
+        # Автоматическое воспроизведение запускаем по необходимости.
+        if autoplay:
+            self.animation_timer.start()
+
+    def make_manual_step(self):
+        # Останавливаем автоматическое воспроизведение и делаем один шаг.
+        self.animation_timer.stop()
+        self.animation_step()
 
     def animation_step(self):
         if self.animation_result is None:
