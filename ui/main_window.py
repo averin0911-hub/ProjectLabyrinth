@@ -170,6 +170,10 @@ class MainWindow(QMainWindow):
 
         algorithm_layout.addWidget(self.algorithm_input)
 
+        self.playback_mode_input = QComboBox()
+        self.playback_mode_input.addItems(["Анимация", "Мгновенно"])
+        algorithm_layout.addWidget(self.playback_mode_input)
+
         run_button = QPushButton("Запустить")
         run_button.clicked.connect(self.run_selected_algorithm)
         algorithm_layout.addWidget(run_button)
@@ -282,7 +286,6 @@ class MainWindow(QMainWindow):
         name = self.algorithm_input.currentText()
 
         self.canvas.clear_search_result()
-        started = perf_counter()
 
         started = perf_counter()
 
@@ -296,7 +299,10 @@ class MainWindow(QMainWindow):
         elapsed_ms = (perf_counter() - started) * 1000
 
         # Подсветка не входит в измеренное время поиска.
-        self.canvas.show_result(result)
+        if self.playback_mode_input.currentText() == "Анимация":
+            self.canvas.start_animation(result)
+        else:
+            self.canvas.show_result(result)
 
         self.stats_label.setText(
             f"Алгоритм: {name}\n"

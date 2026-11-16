@@ -1,6 +1,7 @@
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QTimer
 
 
 class MazeCanvas(QWidget):
@@ -21,6 +22,13 @@ class MazeCanvas(QWidget):
 
         self.path_cells = set()
         self.visited_cells = set()
+
+        self.animation_result = None  # Результат для воспроизведения.
+        self.animation_index = 0      # Номер следующего шага.
+
+        self.animation_timer = QTimer(self)
+        self.animation_timer.setInterval(0)  # Пауза между шагами — 100 мс.
+        self.animation_timer.timeout.connect(self.animation_step)
 
     def set_maze(self, maze):
         # Новый лабиринт начинает новую историю; масштаб её сохраняет.
@@ -281,13 +289,59 @@ class MazeCanvas(QWidget):
 
 
     def show_result(self, result):
-        # Сохраняем координаты для подсветки.
+        self.clear_search_result()
+
+        # Мгновенно показываем весь результат.
         self.path_cells = set(result["path"])
         self.visited_cells = set(result["visited_order"])
         self.update()
 
+    def start_animation(self, result):
+        self.clear_search_result()
+
+        # Сохраняем результат и запускаем таймер.
+        self.animation_result = result
+        self.animation_timer.start()
+
+    def animation_step(self):
+        if self.animation_result is None:
+            return
+
+        visited = self.animation_result["visited_order"]
+        path = self.animation_result["path"]
+        total = len(visited) + len(path)
+
+        # Все клетки уже показаны.
+        if self.animation_index >= total:
+            self.animation_timer.stop()
+            return
+
+        if self.animation_index < len(visited):
+            # Сначала показываем обработанные клетки.
+            position = visited[self.animation_index]
+            self.visited_cells.add(position)
+        else:
+            # Затем показываем клетки итогового пути.
+            path_index = self.animation_index - len(visited)
+            position = path[path_index]
+            self.path_cells.add(position)
+
+        self.animation_index += 1
+
+        # Перерисовываем только изменившуюся клетку.
+        row, col = position
+        size = self.cell_size
+        self.update(col * size, row * size, size, size)
+
+        if self.animation_index == total:
+            self.animation_timer.stop()
+
     def clear_search_result(self):
-        # Убираем подсветку прежнего поиска.
+        # Останавливаем воспроизведение прежнего поиска.
+        self.animation_timer.stop()
+        self.animation_result = None
+        self.animation_index = 0
+
         if self.path_cells or self.visited_cells:
             self.path_cells.clear()
             self.visited_cells.clear()
