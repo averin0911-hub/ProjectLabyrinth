@@ -352,9 +352,14 @@ class MainWindow(QMainWindow):
         else:
             self.canvas.show_result(result)
 
+        if result["distance"] is None:
+            path_text = "Путь не найден"
+        else:
+            path_text = f"Длина пути: {result['distance']} шагов"
+
         self.stats_label.setText(
             f"Алгоритм: {name}\n"
-            f"Длина пути: {result['distance']} шагов\n"
+            f"{path_text}\n"
             f"Обработано клеток: {result['visited_count']}\n"
             f"Время: {elapsed_ms:.3f} мс"
         )

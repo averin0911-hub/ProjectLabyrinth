@@ -159,7 +159,16 @@ class BidirectionalBFS:
                     break
 
         if not found or meeting_cell is None:
-            raise ValueError("Путь до выхода не существует")
+            return {
+                "distance": None,
+                "steps": None,
+                "path": [],
+                "visited_order": visited_order,
+                "visited_count": len(visited_order),
+                "events": events,
+                "start": start_cell,
+                "end": end_cell,
+            }
 
         # Собираем первую половину пути: от старта до точки встречи.
         path_from_start: list[tuple[int, int]] = []

@@ -136,7 +136,16 @@ class Dijkstra:
 
         # Если целевая клетка не достигнута — пути нет.
         if end_cell not in distances:
-            raise ValueError("Путь до выхода не существует")
+            return {
+                "distance": None,
+                "steps": None,
+                "path": [],
+                "visited_order": visited_order,
+                "visited_count": len(visited_order),
+                "events": events,
+                "start": start_cell,
+                "end": end_cell,
+            }
 
         # Восстанавливаем путь по предыдущим клеткам.
         path: list[tuple[int, int]] = []

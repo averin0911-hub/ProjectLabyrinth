@@ -115,12 +115,16 @@ def test_compare_calls_each_algorithm_once_on_same_maze(monkeypatch, capsys):
     app.compare_algorithms(maze)
 
     assert calls == [
-        (maze, app.bfs), (maze, app.bidirectional_bfs),
-        (maze, app.dijkstra), (maze, app.A_star),
+        (maze, app.bfs),
+        (maze, app.bidirectional_bfs),
+        (maze, app.dijkstra),
+        (maze, app.A_star),
+        (maze, app.dfs),
     ]
+
     output = capsys.readouterr().out
     assert "Всего клеток: 2; проходимых: 2" in output
-    for name in ["BFS", "Двунаправленный BFS", "Дейкстра", "A*"]:
+    for name in ["BFS", "Двунаправленный BFS", "Дейкстра", "A*", "DFS"]:
         rows = [line for line in output.splitlines() if line.startswith(name + " ")]
         assert len(rows) == 1
         assert rows[0].split()[-3:] == ["12", "23", "34.500"]
@@ -136,8 +140,9 @@ def test_compare_handles_no_path(capsys):
 @pytest.mark.parametrize("choice, name, algorithm", [
     ("1", "BFS", app.bfs),
     ("2", "Двунаправленный BFS", app.bidirectional_bfs),
-    ("3", "Дейкстра", app.dijkstra),
-    ("4", "A*", app.A_star),
+    ("3", "DFS", app.dfs),
+    ("4", "Дейкстра", app.dijkstra),
+    ("5", "A*", app.A_star),
 ])
 def test_menu_starts_selected_algorithm(monkeypatch, choice, name, algorithm):
     """Пункты 1–4 вызывают нужный алгоритм один раз с текущим лабиринтом."""
@@ -157,7 +162,14 @@ def test_menu_generates_shows_and_compares_maze(monkeypatch):
     """Меню создаёт поле 8×6; последующие показ и сравнение используют новое поле."""
     first = Maze([[2, 3]])
     second = Maze([[2, 0, 3]])
-    answers = iter(["5", "8", "6", "6", "7", "0"])
+    answers = iter([
+        "6",  # Сгенерировать новый лабиринт.
+        "8",  # Ширина.
+        "6",  # Высота.
+        "7",  # Показать исходный лабиринт.
+        "8",  # Сравнить алгоритмы.
+        "0",  # Выйти.
+    ])
     generated = []
     shown = []
     compared = []

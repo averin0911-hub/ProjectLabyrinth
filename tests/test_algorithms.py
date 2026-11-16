@@ -6,6 +6,7 @@ from core.algorithms.a_star import A_STAR, A_star
 from core.algorithms.bfs import BFS, bfs
 from core.algorithms.bidirectional_bfs import BidirectionalBFS, bidirectional_bfs
 from core.algorithms.dijkstra import Dijkstra, dijkstra
+from core.algorithms.dfs import DFS
 from core.maze import Maze
 
 
@@ -69,12 +70,26 @@ def test_start_equals_end(solver_class):
     assert result["visited_count"] == 1
 
 
+@pytest.mark.parametrize(
+    "solver_class",
+    [BFS, BidirectionalBFS, Dijkstra, A_STAR, DFS],
+)
 def test_no_path(solver_class):
-    """В строке [2, 1, 3] стену не обойти: ожидаем ошибку отсутствия пути."""
     maze = Maze([[2, 1, 3]])
+    result = solver_class(maze).solve()
 
-    with pytest.raises(ValueError, match="Путь до выхода не существует"):
-        solver_class(maze).solve()
+    assert result["distance"] is None
+    assert result["steps"] is None
+    assert result["path"] == []
+    assert result["events"]
+
+    closed = [
+        cell
+        for action, cell in result["events"]
+        if action.startswith("closed")
+    ]
+    assert closed == result["visited_order"]
+    assert len(closed) == result["visited_count"]
 
 
 def test_missing_start(solver_class):

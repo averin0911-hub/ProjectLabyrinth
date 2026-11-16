@@ -84,6 +84,9 @@ def run_algorithm(
     except ValueError as error:
         print(f"\n{name}: {error}")
         return None
+    if result["distance"] is None:
+        print(f"\n{name}: Путь до выхода не существует")
+        return None
     print(f"\n{name}")
     show_maze(maze, result["path"], result["visited_order"])
     print(f"Длина пути: {result['distance']} шагов")
@@ -114,6 +117,11 @@ def compare_algorithms(maze: Maze) -> None:
         except ValueError as error:
             print(f"{name}: {error}")
             return
+        
+        if result["distance"] is None:
+            print(f"{name}: Путь до выхода не существует")
+            return
+        
         measurements.append(
             (name, result["distance"], result["visited_count"], elapsed_ms)
         )
