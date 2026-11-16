@@ -74,14 +74,19 @@ class BFS:
         if not self.maze.is_free(*end_cell):
             raise ValueError("Конечная клетка недопустима")
 
+        # В начале в очереди находится только старт.
+        events = [("open", start_cell)]
         # Если старт совпадает с финишем, сразу возвращаем результат.
         if start_cell == end_cell:
+            events.append(("closed", start_cell))
+
             return {
                 "distance": 0,
                 "steps": 0,
                 "path": [start_cell],
                 "visited_order": [start_cell],
                 "visited_count": 1,
+                "events": events,
                 "start": start_cell,
                 "end": end_cell,
             }
@@ -99,6 +104,7 @@ class BFS:
             # Извлекаем первую клетку в очереди.
             current = queue.popleft()
             visited_order.append(current)
+            events.append(("closed", current))
 
             # Если дошли до цели — можно прекращать поиск.
             if current == end_cell:
@@ -110,6 +116,9 @@ class BFS:
                     visited_set.add(neighbor)
                     previous[neighbor] = current
                     queue.append(neighbor)
+
+                    # Новая клетка ожидает обработки.
+                    events.append(("open", neighbor))
 
         # Если целевая клетка не достигнута — пути нет.
         if end_cell not in previous:
@@ -132,6 +141,7 @@ class BFS:
             "path": path,
             "visited_order": visited_order,
             "visited_count": len(visited_order),
+            "events": events,
             "start": start_cell,
             "end": end_cell,
         }

@@ -22,13 +22,16 @@ class MazeCanvas(QWidget):
 
         self.path_cells = set()
         self.visited_cells = set()
+        self.open_cells = set()  # Клетки, ожидающие обработки.
 
         self.animation_result = None  # Результат для воспроизведения.
         self.animation_index = 0      # Номер следующего шага.
 
         self.animation_timer = QTimer(self)
-        self.animation_timer.setInterval(0)  # Пауза между шагами — 100 мс.
+        self.animation_timer.setInterval(100)  # Пауза между шагами — 100 мс.
         self.animation_timer.timeout.connect(self.animation_step)
+
+        
 
     def set_maze(self, maze):
         # Новый лабиринт начинает новую историю; масштаб её сохраняет.
@@ -90,6 +93,8 @@ class MazeCanvas(QWidget):
                     color = "#fde047"  # Найденный путь.
                 elif position in self.visited_cells:
                     color = "#60a5fa"  # Обработанная клетка.
+                elif position in self.open_cells:
+                    color = "#c084fc"  # Открытая клетка.
                 else:
                     color = "#ffffff"  # Проход.
 
@@ -291,7 +296,10 @@ class MazeCanvas(QWidget):
     def show_result(self, result):
         self.clear_search_result()
 
-        # Мгновенно показываем весь результат.
+        # Применяем все события сразу, без таймера.
+        for action, position in result.get("events", []):
+            self.apply_search_event(action, position)
+
         self.path_cells = set(result["path"])
         self.visited_cells = set(result["visited_order"])
         self.update()
@@ -307,28 +315,40 @@ class MazeCanvas(QWidget):
         if self.animation_result is None:
             return
 
+        events = self.animation_result.get("events")
         visited = self.animation_result["visited_order"]
         path = self.animation_result["path"]
-        total = len(visited) + len(path)
 
-        # Все клетки уже показаны.
+        # Пока события есть только у BFS.
+        if events is None:
+            search_steps = len(visited)
+        else:
+            search_steps = len(events)
+
+        total = search_steps + len(path)
+
         if self.animation_index >= total:
             self.animation_timer.stop()
             return
 
-        if self.animation_index < len(visited):
-            # Сначала показываем обработанные клетки.
-            position = visited[self.animation_index]
-            self.visited_cells.add(position)
+        if self.animation_index < search_steps:
+            if events is None:
+                # Остальные алгоритмы пока показываем прежним способом.
+                position = visited[self.animation_index]
+                self.visited_cells.add(position)
+            else:
+                # Извлекаем действие и координаты из события.
+                action, position = events[self.animation_index]
+                self.apply_search_event(action, position)
         else:
-            # Затем показываем клетки итогового пути.
-            path_index = self.animation_index - len(visited)
+            # После событий показываем итоговый путь.
+            path_index = self.animation_index - search_steps
             position = path[path_index]
             self.path_cells.add(position)
 
         self.animation_index += 1
 
-        # Перерисовываем только изменившуюся клетку.
+        # Перерисовываем изменившуюся клетку.
         row, col = position
         size = self.cell_size
         self.update(col * size, row * size, size, size)
@@ -337,12 +357,23 @@ class MazeCanvas(QWidget):
             self.animation_timer.stop()
 
     def clear_search_result(self):
-        # Останавливаем воспроизведение прежнего поиска.
         self.animation_timer.stop()
         self.animation_result = None
         self.animation_index = 0
 
-        if self.path_cells or self.visited_cells:
+        if self.path_cells or self.visited_cells or self.open_cells:
             self.path_cells.clear()
             self.visited_cells.clear()
+            self.open_cells.clear()
             self.update()
+
+
+    def apply_search_event(self, action, position):
+        if action == "open":
+            # Клетка появилась в очереди.
+            self.open_cells.add(position)
+
+        elif action == "closed":
+            # Переносим клетку из открытого списка в закрытый.
+            self.open_cells.discard(position)
+            self.visited_cells.add(position)
