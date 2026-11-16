@@ -129,15 +129,24 @@ class Maze:
 
 
 
-def generate_maze(width: int, height: int, seed: int | None = None) -> Maze:
+def generate_maze(
+    width: int,
+    height: int,
+    seed: int | None = None,
+    wall_removal_chance: float = 0.05,
+) -> Maze:
     """Создаёт случайный лабиринт алгоритмом Randomized DFS.
 
-    Размеры включают внешнюю стену. После прокладки связного лабиринта
-    каждая оставшаяся внутренняя стена с вероятностью 50% превращается
-    в проход. `seed` позволяет повторно получить тот же лабиринт.
+    Размеры включают внешнюю стену.
+    wall_removal_chance — вероятность открытия подходящей внутренней
+    стены после генерации коридоров, от 0 до 1.
+    seed позволяет повторить генерацию с теми же параметрами.
     """
     if width < 5 or height < 5:
         raise ValueError("Ширина и высота должны быть не меньше 5")
+
+    if not 0 <= wall_removal_chance <= 1:
+        raise ValueError("Вероятность удаления стен должна быть от 0 до 1")
 
     rng = random.Random(seed)
     grid = [[1 for _ in range(width)] for _ in range(height)]
@@ -189,7 +198,7 @@ def generate_maze(width: int, height: int, seed: int | None = None) -> Maze:
                     not (grid[row][col - 1] == 0 or grid[row][col + 1] == 0) or \
                         grid[row][col - 1] == 0 and grid[row][col + 1] == 0 and \
                             not (grid[row - 1][col] == 0 or grid[row +1][col] == 0)):
-                                grid[row][col] = rng.choice([0] * 50 + [1] * 50)
+                                grid[row][col] = 0 if rng.random() < wall_removal_chance else 1
 
     maze = Maze(grid, start=start)
 

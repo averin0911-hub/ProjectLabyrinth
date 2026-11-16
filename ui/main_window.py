@@ -77,6 +77,13 @@ class MainWindow(QMainWindow):
         parameters_layout.addRow("Ширина:", self.width_input)
         parameters_layout.addRow("Высота:", self.height_input)
 
+        self.wall_removal_input = QSpinBox()
+        self.wall_removal_input.setRange(0, 100)
+        self.wall_removal_input.setSuffix(" %")
+        self.wall_removal_input.setValue(5)
+
+        parameters_layout.addRow("Удаление стен:", self.wall_removal_input)
+
         self.generate_button = QPushButton("Сгенерировать")
         parameters_layout.addRow(self.generate_button)
 
@@ -198,8 +205,16 @@ class MainWindow(QMainWindow):
         width = self.width_input.value()
         height = self.height_input.value()
 
+        
+        # Переводим проценты в вероятность: например, 5 → 0.05.
+        chance = self.wall_removal_input.value() / 100
+
         # Создаём лабиринт и передаём его полю.
-        self.maze = generate_maze(width, height)
+        self.maze = generate_maze(
+            width,
+            height,
+            wall_removal_chance=chance,
+        )
         self.canvas.set_maze(self.maze)
 
         self.statusBar().showMessage(
