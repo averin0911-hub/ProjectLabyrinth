@@ -181,6 +181,24 @@ class MainWindow(QMainWindow):
         self.playback_mode_input.addItems(["Анимация", "Мгновенно"])
         algorithm_layout.addWidget(self.playback_mode_input)
 
+        self.animation_delay_input = QSpinBox()
+        self.animation_delay_input.setRange(0, 1000)
+        self.animation_delay_input.setSuffix(" мс")
+        self.animation_delay_input.setValue(100)
+
+        algorithm_layout.addWidget(QLabel("Задержка между шагами:"))
+        algorithm_layout.addWidget(self.animation_delay_input)
+
+        # Изменение значения сразу меняет интервал таймера.
+        self.animation_delay_input.valueChanged.connect(
+            self.canvas.set_animation_interval
+        )
+
+        # Передаём начальное значение таймеру.
+        self.canvas.set_animation_interval(
+            self.animation_delay_input.value()
+        )
+
         run_button = QPushButton("Запустить")
         run_button.clicked.connect(self.run_selected_algorithm)
         algorithm_layout.addWidget(run_button)

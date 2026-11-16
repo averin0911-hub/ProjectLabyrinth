@@ -377,3 +377,9 @@ class MazeCanvas(QWidget):
         elif action in ("closed", "closed_start", "closed_end"):
             self.open_cells.discard(position)
             self.visited_cells.add(position)
+
+
+
+    def set_animation_interval(self, milliseconds):
+        # Меняем задержку, сохраняя текущий шаг анимации.
+        self.animation_timer.setInterval(milliseconds)
