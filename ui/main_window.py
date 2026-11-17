@@ -96,6 +96,7 @@ class MainWindow(QMainWindow):
         parameters_layout.addRow("Удаление стен:", self.wall_removal_input)
 
         self.generate_button = QPushButton("Сгенерировать")
+        self.generate_button.setProperty("role", "primary")
         parameters_layout.addRow(self.generate_button)
 
         # По нажатию вызываем метод; передаём его без скобок.
@@ -193,6 +194,11 @@ class MainWindow(QMainWindow):
         self.algorithm_input.addItem("A*", A_star)
         self.algorithm_input.addItem("DFS", dfs)
 
+        # При смене алгоритма сбрасываем прежнее воспроизведение.
+        self.algorithm_input.currentIndexChanged.connect(
+            self.canvas.clear_search_result
+        )
+
         algorithm_layout.addWidget(self.algorithm_input)
 
         self.playback_mode_input = QComboBox()
@@ -221,6 +227,7 @@ class MainWindow(QMainWindow):
         )
 
         run_button = QPushButton("Запустить")
+        run_button.setProperty("role", "primary")
         run_button.clicked.connect(self.run_selected_algorithm)
         algorithm_layout.addWidget(run_button)
 
@@ -290,6 +297,7 @@ class MainWindow(QMainWindow):
         comparison_layout = QVBoxLayout(comparison_box)
 
         compare_button = QPushButton("Сравнить алгоритмы")
+        compare_button.setProperty("role", "primary")
         compare_button.clicked.connect(self.compare_algorithms)
         comparison_layout.addWidget(compare_button)
 
@@ -363,6 +371,7 @@ class MainWindow(QMainWindow):
 
         results_layout.addWidget(legend_box)
 
+        self.apply_style() # Стиль оформления
         # Создаём и показываем начальный лабиринт.
         self.generate_new_maze()
 
@@ -743,3 +752,90 @@ class MainWindow(QMainWindow):
 
         # Остальные события обрабатываются обычным способом.
         return super().eventFilter(watched, event)
+
+
+    def apply_style(self):
+        # Имя позволяет отдельно оформить фон центрального контейнера.
+        self.centralWidget().setObjectName("appCentral")
+
+        self.setStyleSheet("""
+            QWidget {
+                color: #0f172a;
+                font-size: 13px;
+            }
+
+            QWidget#appCentral {
+                background-color: #eef2f7;
+            }
+
+            QGroupBox {
+                background-color: #ffffff;
+                border: 1px solid #d5deeb;
+                border-radius: 8px;
+                margin-top: 10px;
+                padding: 6px;
+            }
+
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 4px;
+                color: #1e3a5f;
+            }
+
+            QPushButton {
+                background-color: #f1f5f9;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                padding: 5px 10px;
+                font-weight: 600;
+            }
+
+            QPushButton:hover:enabled {
+                background-color: #e2e8f0;
+                border-color: #94a3b8;
+            }
+
+            QPushButton:pressed:enabled {
+                background-color: #cbd5e1;
+            }
+
+            QPushButton[role="primary"] {
+                background-color: #2563eb;
+                color: #ffffff;
+                border-color: #2563eb;
+            }
+
+            QPushButton[role="primary"]:hover:enabled {
+                background-color: #1d4ed8;
+                border-color: #1d4ed8;
+            }
+
+            QPushButton[role="primary"]:pressed:enabled {
+                background-color: #1e40af;
+                border-color: #1e40af;
+            }
+
+            QPushButton:disabled,
+            QPushButton[role="primary"]:disabled {
+                background-color: #e2e8f0;
+                color: #94a3b8;
+                border-color: #d5deeb;
+            }
+
+            QComboBox {
+                background-color: #f8fafc;
+                border: 1px solid #cbd5e1;
+                border-radius: 5px;
+                padding: 3px;
+            }
+
+            QComboBox:focus, QPushButton:focus {
+                border: 1px solid #60a5fa;
+            }
+
+            QStatusBar {
+                background-color: #ffffff;
+                border-top: 1px solid #d5deeb;
+            }
+        """)
