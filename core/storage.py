@@ -2,7 +2,7 @@ import json
 
 from core.maze import Maze
 
-
+MAX_MAZE_SIZE = 2001
 MAX_FILE_SIZE = 10 * 1024 * 1024  # Максимум 10 МиБ.
 
 
@@ -24,11 +24,11 @@ def load_maze(filename):
 
     grid = data.get("grid")
 
-    if not isinstance(grid, list) or not 5 <= len(grid) <= 600:
-        raise ValueError("Высота должна быть от 5 до 600 клеток")
+    if not isinstance(grid, list) or not 5 <= len(grid) <= MAX_MAZE_SIZE:
+        raise ValueError(f"Высота должна быть от 5 до {MAX_MAZE_SIZE} клеток")
 
-    if not isinstance(grid[0], list) or not 5 <= len(grid[0]) <= 600:
-        raise ValueError("Ширина должна быть от 5 до 600 клеток")
+    if not isinstance(grid[0], list) or not 5 <= len(grid[0]) <= MAX_MAZE_SIZE:
+        raise ValueError(f"Ширина должна быть от 5 до {MAX_MAZE_SIZE} клеток")
 
     if any(not isinstance(row, list) or len(row) != len(grid[0]) for row in grid):
         raise ValueError("Все строки должны иметь одинаковую длину")

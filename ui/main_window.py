@@ -17,12 +17,12 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QAbstractItemView,
 )
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtGui import QKeySequence, QShortcut, QColor
 from PyQt6.QtCore import Qt
 from core.maze import generate_maze
 from ui.canvas import MazeCanvas
 import json
-from core.storage import load_maze
+from core.storage import load_maze, MAX_MAZE_SIZE
 from core.algorithms.bfs import bfs
 from core.algorithms.bidirectional_bfs import bidirectional_bfs
 from core.algorithms.dijkstra import dijkstra
@@ -71,11 +71,11 @@ class MainWindow(QMainWindow):
 
         # Поля целых чисел от 5 до 600; начальный размер — 20 × 20.
         self.width_input = QSpinBox()
-        self.width_input.setRange(5, 600)
+        self.width_input.setRange(5, MAX_MAZE_SIZE)
         self.width_input.setValue(21)
 
         self.height_input = QSpinBox()
-        self.height_input.setRange(5, 600)
+        self.height_input.setRange(5, MAX_MAZE_SIZE)
         self.height_input.setValue(21)
 
         parameters_layout.addRow("Ширина:", self.width_input)
@@ -225,13 +225,48 @@ class MainWindow(QMainWindow):
         # Справа показываем результат последнего запуска.
         self.results_panel.setTitle("Результаты")
 
-        self.stats_label = QLabel("Алгоритм ещё не запускался")
-        self.stats_label.setWordWrap(True)
+        # Оставляем достаточно места для результатов.
+        self.results_panel.setMinimumWidth(430)
+
+        stats_box = QGroupBox("Последний запуск")
+        stats_layout = QVBoxLayout(stats_box)
+
+        labels = ["Алгоритм", "Длина пути", "Обработано клеток", "Время"]
+
+        self.stats_table = QTableWidget(len(labels), 2)
+        self.style_table(self.stats_table)
+
+        # У статистики нет заголовков столбцов.
+        self.stats_table.horizontalHeader().hide()
+        self.stats_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+
+        self.stats_table.setSelectionMode(
+            QAbstractItemView.SelectionMode.NoSelection
+        )
+        self.stats_table.setAlternatingRowColors(False)
+        self.stats_table.setShowGrid(False)
+        self.stats_table.setFixedHeight(len(labels) * 34 + 2)
+
+        for row, label in enumerate(labels):
+            self.stats_table.setItem(row, 0, QTableWidgetItem(label))
+
+            # Значения выравниваем вправо и выделяем фоном.
+            value_item = QTableWidgetItem("—")
+            value_item.setTextAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
+            value_item.setBackground(QColor("#eef2f7"))
+
+            self.stats_table.setItem(row, 1, value_item)
+
+        stats_layout.addWidget(self.stats_table)
 
 
         # Создание сводной таблицы
         results_layout = QVBoxLayout(self.results_panel)
-        results_layout.addWidget(self.stats_label)
+        results_layout.addWidget(stats_box)
 
         comparison_box = QGroupBox("Последнее сравнение")
         comparison_layout = QVBoxLayout(comparison_box)
@@ -242,6 +277,9 @@ class MainWindow(QMainWindow):
 
         # Сначала строк нет; столбцов — четыре.
         self.comparison_table = QTableWidget(0, 4)
+        self.style_table(self.comparison_table)
+        self.comparison_table.setMinimumHeight(220)
+
         self.comparison_table.setHorizontalHeaderLabels([
             "Алгоритм",
             "Длина",
@@ -276,6 +314,8 @@ class MainWindow(QMainWindow):
         width = self.width_input.value()
         height = self.height_input.value()
 
+        if not self.confirm_large_maze(width, height):
+            return
         
         # Переводим проценты в вероятность: например, 5 → 0.05.
         chance = self.wall_removal_input.value() / 100
@@ -349,6 +389,9 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Ошибка загрузки", str(error))
             return
 
+        if not self.confirm_large_maze(maze.cols, maze.rows):
+            return
+
         # Заменяем текущее поле только после успешной проверки.
         self.maze = maze
         self.canvas.set_maze(maze)
@@ -378,7 +421,8 @@ class MainWindow(QMainWindow):
         try:
             result = algorithm(self.maze)
         except ValueError as error:
-            self.stats_label.setText(f"Алгоритм: {name}\n{error}")
+            self.update_statistics([name, "Ошибка", "—", "—"])
+            QMessageBox.warning(self, "Ошибка поиска", str(error))
             return
 
         # Переводим длительность из секунд в миллисекунды.
@@ -394,16 +438,16 @@ class MainWindow(QMainWindow):
             self.canvas.show_result(result)
 
         if result["distance"] is None:
-            path_text = "Путь не найден"
+            distance_text = "Нет пути"
         else:
-            path_text = f"Длина пути: {result['distance']} шагов"
+            distance_text = f"{result['distance']} шагов"
 
-        self.stats_label.setText(
-            f"Алгоритм: {name}\n"
-            f"{path_text}\n"
-            f"Обработано клеток: {result['visited_count']}\n"
-            f"Время: {elapsed_ms:.3f} мс"
-        )
+        self.update_statistics([
+            name,
+            distance_text,
+            result["visited_count"],
+            f"{elapsed_ms:.3f} мс",
+        ])
 
 
     def compare_algorithms(self):
@@ -452,13 +496,77 @@ class MainWindow(QMainWindow):
 
             # Заполняем четыре ячейки новой строки.
             for column, value in enumerate(values):
-                self.comparison_table.setItem(
-                    row,
-                    column,
-                    QTableWidgetItem(value),
-                )
+                item = QTableWidgetItem(value)
+                item.setToolTip(value)
+
+                # Числа выравниваем вправо.
+                if column > 0:
+                    item.setTextAlignment(
+                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+                    )
+
+                self.comparison_table.setItem(row, column, item)
 
             # Не храним историю поиска между запусками алгоритмов.
             del result
 
         self.statusBar().showMessage("Сравнение завершено")
+
+
+    def style_table(self, table):
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.verticalHeader().hide()
+        table.verticalHeader().setDefaultSectionSize(34)
+        table.setAlternatingRowColors(True)
+
+        table.setStyleSheet("""
+            QTableWidget {
+                background-color: #ffffff;
+                alternate-background-color: #f5f8fc;
+                color: #0f172a;
+                font-size: 13px;
+                border: 1px solid #d5deeb;
+                border-radius: 6px;
+                gridline-color: #dde5ef;
+                selection-background-color: #dbeafe;
+                selection-color: #0f172a;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QHeaderView::section {
+                background-color: #edf2f8;
+                color: #0f172a;
+                font-weight: 600;
+                padding: 6px;
+                border: none;
+                border-right: 1px solid #d5deeb;
+                border-bottom: 1px solid #d5deeb;
+            }
+        """)
+
+    def update_statistics(self, values):
+        for row, value in enumerate(values):
+            item = self.stats_table.item(row, 1)
+            item.setText(str(value))
+            item.setToolTip(str(value))
+
+
+    def confirm_large_maze(self, width, height):
+        # Для небольших размеров подтверждение не требуется.
+        if width <= 599 and height <= 599:
+            return True
+
+        answer = QMessageBox.warning(
+            self,
+            "Большой лабиринт",
+            f"Размер: {width} × {height} ({width * height:,} клеток).\n\n"
+            "Генерация и поиск могут занять много времени и потребовать "
+            "большого объёма оперативной памяти. Во время расчёта окно "
+            "может временно не отвечать.\n\n"
+            "Продолжить?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        return answer == QMessageBox.StandardButton.Yes
