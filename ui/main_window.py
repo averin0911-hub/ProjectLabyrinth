@@ -29,6 +29,7 @@ from core.algorithms.dijkstra import dijkstra
 from core.algorithms.a_star import A_star
 from core.algorithms.dfs import dfs
 from time import perf_counter
+from ui.task_thread import TaskThread, calculate_comparison
 
 
 class MainWindow(QMainWindow):
@@ -37,10 +38,13 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("ProjectLabyrinth")
-        self.resize(1200, 800)
+        self.resize(1600, 800)
 
         # Текущий лабиринт; пока не создан.
         self.maze = None
+
+        # Поток текущего поиска; пока поиск не запущен.
+        self.search_thread = None
 
         # Общий контейнер для трёх панелей.
         central_widget = QWidget()
@@ -311,21 +315,46 @@ class MainWindow(QMainWindow):
         self.generate_new_maze()
 
     def generate_new_maze(self):
+        if self.search_thread is not None:
+            return
+
         width = self.width_input.value()
         height = self.height_input.value()
 
         if not self.confirm_large_maze(width, height):
             return
-        
-        # Переводим проценты в вероятность: например, 5 → 0.05.
-        chance = self.wall_removal_input.value() / 100
 
-        # Создаём лабиринт и передаём его полю.
-        self.maze = generate_maze(
-            width,
-            height,
-            wall_removal_chance=chance,
+        chance = self.wall_removal_input.value() / 100
+        self.canvas.clear_search_result()
+
+        # Создаём лабиринт в фоне.
+        self.search_thread = TaskThread(
+            generate_maze,
+            args=(width, height),
+            kwargs={"wall_removal_chance": chance},
+            parent=self,
         )
+
+        self.search_thread.finished.connect(self.finish_generation)
+
+        self.set_search_busy(True)
+        self.statusBar().showMessage("Генерация лабиринта…")
+        self.search_thread.start()
+
+    def finish_generation(self):
+        thread = self.search_thread
+        self.search_thread = None
+
+        self.set_search_busy(False)
+        thread.deleteLater()
+
+        if thread.error is not None:
+            self.statusBar().showMessage("Ошибка генерации")
+            QMessageBox.warning(self, "Ошибка генерации", thread.error)
+            return
+
+        # Передаём готовый лабиринт полю в главном потоке.
+        self.maze = thread.result
         self.canvas.set_maze(self.maze)
 
         self.statusBar().showMessage(
@@ -407,32 +436,56 @@ class MainWindow(QMainWindow):
 
 
     def run_selected_algorithm(self):
-        if self.maze is None:
+        # Не запускаем поиск повторно, пока предыдущий не завершился.
+        if self.maze is None or self.search_thread is not None:
             return
 
-        # Получаем функцию и название выбранного алгоритма.
         algorithm = self.algorithm_input.currentData()
-        name = self.algorithm_input.currentText()
+
+        # Запоминаем настройки этого запуска.
+        self.search_name = self.algorithm_input.currentText()
+        self.search_mode = self.playback_mode_input.currentText()
 
         self.canvas.clear_search_result()
 
-        started = perf_counter()
+        # Создаём поток и указываем, что сделать после его завершения.
+        self.search_thread = TaskThread(
+            algorithm,
+            args=(self.maze,),
+            parent=self,
+        )
+        self.search_thread.finished.connect(self.finish_search)
 
-        try:
-            result = algorithm(self.maze)
-        except ValueError as error:
-            self.update_statistics([name, "Ошибка", "—", "—"])
-            QMessageBox.warning(self, "Ошибка поиска", str(error))
+        self.set_search_busy(True)
+        self.update_statistics([self.search_name, "Расчёт…", "—", "—"])
+        self.statusBar().showMessage("Выполняется поиск…")
+
+        # Запускаем run() в отдельном потоке.
+        self.search_thread.start()
+
+
+    def finish_search(self):
+        # Сохраняем завершившийся поток в локальную переменную.
+        thread = self.search_thread
+        self.search_thread = None
+
+        self.set_search_busy(False)
+
+        # Просим Qt удалить объект после обработки текущего события.
+        thread.deleteLater()
+
+        if thread.error is not None:
+            self.update_statistics([self.search_name, "Ошибка", "—", "—"])
+            self.statusBar().showMessage("Ошибка поиска")
+            QMessageBox.warning(self, "Ошибка поиска", thread.error)
             return
 
-        # Переводим длительность из секунд в миллисекунды.
-        elapsed_ms = (perf_counter() - started) * 1000
+        result = thread.result
 
-        mode = self.playback_mode_input.currentText()
-
-        if mode == "Анимация":
+        # Показываем готовый результат выбранным способом.
+        if self.search_mode == "Анимация":
             self.canvas.start_animation(result)
-        elif mode == "Пошагово":
+        elif self.search_mode == "Пошагово":
             self.canvas.start_animation(result, autoplay=False)
         else:
             self.canvas.show_result(result)
@@ -443,72 +496,69 @@ class MainWindow(QMainWindow):
             distance_text = f"{result['distance']} шагов"
 
         self.update_statistics([
-            name,
+            self.search_name,
             distance_text,
             result["visited_count"],
-            f"{elapsed_ms:.3f} мс",
+            f"{thread.elapsed_ms:.3f} мс",
         ])
+
+        self.statusBar().showMessage("Расчёт завершён")
 
 
     def compare_algorithms(self):
-        if self.maze is None:
+        if self.maze is None or self.search_thread is not None:
             return
 
-        # Завершаем прежнее воспроизведение и очищаем таблицу.
+        # Читаем список из виджета до запуска фонового потока.
+        algorithms = []
+
+        for index in range(self.algorithm_input.count()):
+            name = self.algorithm_input.itemText(index)
+            algorithm = self.algorithm_input.itemData(index)
+            algorithms.append((name, algorithm))
+
         self.canvas.clear_search_result()
         self.comparison_table.setRowCount(0)
 
-        for index in range(self.algorithm_input.count()):
-            # Получаем название и функцию каждого алгоритма из списка.
-            name = self.algorithm_input.itemText(index)
-            algorithm = self.algorithm_input.itemData(index)
+        self.search_thread = TaskThread(
+            calculate_comparison,
+            args=(self.maze, algorithms),
+            parent=self,
+        )
 
-            started = perf_counter()
+        self.search_thread.finished.connect(self.finish_comparison)
 
-            try:
-                result = algorithm(self.maze)
-            except ValueError as error:
-                self.comparison_table.setRowCount(0)
-                QMessageBox.warning(
-                    self,
-                    "Ошибка сравнения",
-                    f"{name}:\n{error}",
-                )
-                return
+        self.set_search_busy(True)
+        self.statusBar().showMessage("Выполняется сравнение…")
+        self.search_thread.start()
 
-            elapsed_ms = (perf_counter() - started) * 1000
+    def finish_comparison(self):
+        thread = self.search_thread
+        self.search_thread = None
 
-            if result["distance"] is None:
-                distance_text = "Нет пути"
-            else:
-                distance_text = str(result["distance"])
+        self.set_search_busy(False)
+        thread.deleteLater()
 
-            values = [
-                name,
-                distance_text,
-                str(result["visited_count"]),
-                f"{elapsed_ms:.3f}",
-            ]
+        if thread.error is not None:
+            self.statusBar().showMessage("Ошибка сравнения")
+            QMessageBox.warning(self, "Ошибка сравнения", thread.error)
+            return
 
-            # Добавляем строку в конец таблицы.
-            row = self.comparison_table.rowCount()
+        # Заполняем таблицу после завершения расчётов.
+        for row, values in enumerate(thread.result):
             self.comparison_table.insertRow(row)
 
-            # Заполняем четыре ячейки новой строки.
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 item.setToolTip(value)
 
-                # Числа выравниваем вправо.
                 if column > 0:
                     item.setTextAlignment(
-                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+                        Qt.AlignmentFlag.AlignRight
+                        | Qt.AlignmentFlag.AlignVCenter
                     )
 
                 self.comparison_table.setItem(row, column, item)
-
-            # Не храним историю поиска между запусками алгоритмов.
-            del result
 
         self.statusBar().showMessage("Сравнение завершено")
 
@@ -570,3 +620,26 @@ class MainWindow(QMainWindow):
         )
 
         return answer == QMessageBox.StandardButton.Yes
+
+
+
+    def set_search_busy(self, busy):
+        # Пока идёт расчёт, запрещаем менять лабиринт и запускать новый поиск.
+        self.controls_panel.setEnabled(not busy)
+        self.results_panel.setEnabled(not busy)
+        self.canvas.setEnabled(not busy)
+
+        # Сочетание клавиш блокируем отдельно.
+        self.undo_shortcut.setEnabled(not busy)
+
+
+    def closeEvent(self, event):
+        if self.search_thread is not None:
+            # Не закрываем окно, пока его поток ещё работает.
+            event.ignore()
+            self.statusBar().showMessage(
+                "Дождитесь завершения расчёта перед закрытием окна"
+            )
+            return
+
+        super().closeEvent(event)
