@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
 )
 from PyQt6.QtGui import QKeySequence, QShortcut, QColor
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QEvent
 from core.maze import generate_maze
 from ui.canvas import MazeCanvas
 import json
@@ -30,6 +30,9 @@ from core.algorithms.a_star import A_star
 from core.algorithms.dfs import dfs
 from time import perf_counter
 from ui.task_thread import TaskThread, calculate_comparison
+
+
+
 
 
 class MainWindow(QMainWindow):
@@ -125,6 +128,13 @@ class MainWindow(QMainWindow):
 
         # При изменении числа передаём его методу поля.
         self.zoom_input.valueChanged.connect(self.canvas.set_zoom)
+
+        # Сохраняем область прокрутки.
+        self.scroll_area = scroll_area
+
+        # Перехватываем события над лабиринтом и свободной областью вокруг него.
+        self.canvas.installEventFilter(self)
+        self.scroll_area.viewport().installEventFilter(self)
 
         editor_box = QGroupBox("Редактор")
         editor_layout = QFormLayout(editor_box)
@@ -643,3 +653,31 @@ class MainWindow(QMainWindow):
             return
 
         super().closeEvent(event)
+
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.Wheel:
+            # Проверяем, что колёсико прокручено над областью лабиринта.
+            over_maze = (
+                watched is self.canvas
+                or watched is self.scroll_area.viewport()
+            )
+
+            ctrl_pressed = (
+                event.modifiers() & Qt.KeyboardModifier.ControlModifier
+            )
+
+            if over_maze and ctrl_pressed:
+                # Направление и величина прокрутки колёсика по вертикали
+                delta = event.angleDelta().y()
+
+                # Во время фонового расчёта масштабирование заблокировано.
+                if self.zoom_input.isEnabled() and delta != 0:
+                    direction = 1 if delta > 0 else -1
+                    self.zoom_input.stepBy(direction)
+
+                # Событие обработано; прокручивать поле не нужно.
+                return True
+
+        # Остальные события обрабатываются обычным способом.
+        return super().eventFilter(watched, event)
