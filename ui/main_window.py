@@ -11,7 +11,11 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QMessageBox,
-    QLabel
+    QLabel,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
 )
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtCore import Qt
@@ -219,13 +223,50 @@ class MainWindow(QMainWindow):
         self.controls_layout.insertWidget(1, algorithm_box)
 
         # Справа показываем результат последнего запуска.
-        self.results_panel.setTitle("Последний запуск")
+        self.results_panel.setTitle("Результаты")
 
         self.stats_label = QLabel("Алгоритм ещё не запускался")
         self.stats_label.setWordWrap(True)
 
+
+        # Создание сводной таблицы
         results_layout = QVBoxLayout(self.results_panel)
         results_layout.addWidget(self.stats_label)
+
+        comparison_box = QGroupBox("Последнее сравнение")
+        comparison_layout = QVBoxLayout(comparison_box)
+
+        compare_button = QPushButton("Сравнить алгоритмы")
+        compare_button.clicked.connect(self.compare_algorithms)
+        comparison_layout.addWidget(compare_button)
+
+        # Сначала строк нет; столбцов — четыре.
+        self.comparison_table = QTableWidget(0, 4)
+        self.comparison_table.setHorizontalHeaderLabels([
+            "Алгоритм",
+            "Длина",
+            "Клетки",
+            "Время, мс",
+        ])
+
+        # Запрещаем вручную менять результаты.
+        self.comparison_table.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+
+        # Выделяем строку целиком (при щелчке мышью).
+        self.comparison_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+
+        # Убираем номера строк и подбираем ширину столбцов по содержимому.
+        self.comparison_table.verticalHeader().hide()
+        self.comparison_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+
+        comparison_layout.addWidget(self.comparison_table)
+        results_layout.addWidget(comparison_box)
         results_layout.addStretch()
 
         # Создаём и показываем начальный лабиринт.
@@ -363,3 +404,61 @@ class MainWindow(QMainWindow):
             f"Обработано клеток: {result['visited_count']}\n"
             f"Время: {elapsed_ms:.3f} мс"
         )
+
+
+    def compare_algorithms(self):
+        if self.maze is None:
+            return
+
+        # Завершаем прежнее воспроизведение и очищаем таблицу.
+        self.canvas.clear_search_result()
+        self.comparison_table.setRowCount(0)
+
+        for index in range(self.algorithm_input.count()):
+            # Получаем название и функцию каждого алгоритма из списка.
+            name = self.algorithm_input.itemText(index)
+            algorithm = self.algorithm_input.itemData(index)
+
+            started = perf_counter()
+
+            try:
+                result = algorithm(self.maze)
+            except ValueError as error:
+                self.comparison_table.setRowCount(0)
+                QMessageBox.warning(
+                    self,
+                    "Ошибка сравнения",
+                    f"{name}:\n{error}",
+                )
+                return
+
+            elapsed_ms = (perf_counter() - started) * 1000
+
+            if result["distance"] is None:
+                distance_text = "Нет пути"
+            else:
+                distance_text = str(result["distance"])
+
+            values = [
+                name,
+                distance_text,
+                str(result["visited_count"]),
+                f"{elapsed_ms:.3f}",
+            ]
+
+            # Добавляем строку в конец таблицы.
+            row = self.comparison_table.rowCount()
+            self.comparison_table.insertRow(row)
+
+            # Заполняем четыре ячейки новой строки.
+            for column, value in enumerate(values):
+                self.comparison_table.setItem(
+                    row,
+                    column,
+                    QTableWidgetItem(value),
+                )
+
+            # Не храним историю поиска между запусками алгоритмов.
+            del result
+
+        self.statusBar().showMessage("Сравнение завершено")
