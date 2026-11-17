@@ -198,7 +198,6 @@ class MainWindow(QMainWindow):
         self.playback_mode_input = QComboBox()
         self.playback_mode_input.addItems([
             "Анимация",
-            "Пошагово",
             "Мгновенно",
         ])
         algorithm_layout.addWidget(self.playback_mode_input)
@@ -226,12 +225,17 @@ class MainWindow(QMainWindow):
         algorithm_layout.addWidget(run_button)
 
         step_button = QPushButton("Шаг")
-        step_button.clicked.connect(self.canvas.make_manual_step)
+        step_button.clicked.connect(self.make_search_step)
         algorithm_layout.addWidget(step_button)
 
         pause_button = QPushButton("Пауза / Продолжить")
         pause_button.clicked.connect(self.canvas.toggle_animation_pause)
         algorithm_layout.addWidget(pause_button)
+
+        reset_button = QPushButton("Сбросить анимацию")
+        # Останавливаем воспроизведение и убираем подсветку поиска.
+        reset_button.clicked.connect(self.canvas.clear_search_result)
+        algorithm_layout.addWidget(reset_button)
 
         # Размещаем выбор алгоритма сразу после параметров.
         self.controls_layout.insertWidget(1, algorithm_box)
@@ -320,6 +324,44 @@ class MainWindow(QMainWindow):
         comparison_layout.addWidget(self.comparison_table)
         results_layout.addWidget(comparison_box)
         results_layout.addStretch()
+
+
+        legend_box = QGroupBox("Легенда")
+        legend_layout = QVBoxLayout(legend_box)
+        legend_layout.setSpacing(6)
+
+        # Цвета совпадают с отрисовкой в MazeCanvas.
+        legend_items = [
+            ("#1e293b", "Стена"),
+            ("#ffffff", "Свободная клетка"),
+            ("#7c3aed", "Открытый список — ожидает обработки"),
+            ("#60a5fa", "Закрытый список — обработана"),
+            ("#fde047", "Найденный путь"),
+            ("#22c55e", "Старт"),
+            ("#ef4444", "Выход"),
+        ]
+
+        for color, text in legend_items:
+            row = QHBoxLayout()
+
+            # Пустая подпись служит цветным квадратом.
+            color_square = QLabel()
+            color_square.setFixedSize(20, 20)
+            color_square.setStyleSheet(
+                f"background-color: {color};"
+                "border: 1px solid #94a3b8;"
+                "border-radius: 4px;"
+            )
+
+            description = QLabel(text)
+            description.setWordWrap(True)
+
+            row.addWidget(color_square)
+            row.addWidget(description, 1)
+
+            legend_layout.addLayout(row)
+
+        results_layout.addWidget(legend_box)
 
         # Создаём и показываем начальный лабиринт.
         self.generate_new_maze()
@@ -444,8 +486,23 @@ class MainWindow(QMainWindow):
 
 
 
-
     def run_selected_algorithm(self):
+        # Обычный запуск кнопкой «Запустить».
+        self.start_search()
+
+    def make_search_step(self):
+        if self.maze is None or self.search_thread is not None:
+            return
+
+        if self.canvas.animation_result is None:
+            # Результата ещё нет — вычисляем его для ручного просмотра.
+            self.start_search(manual_step=True)
+        else:
+            # Результат готов — показываем следующий шаг.
+            self.canvas.make_manual_step()
+
+
+    def start_search(self, manual_step=False):
         # Не запускаем поиск повторно, пока предыдущий не завершился.
         if self.maze is None or self.search_thread is not None:
             return
@@ -455,6 +512,9 @@ class MainWindow(QMainWindow):
         # Запоминаем настройки этого запуска.
         self.search_name = self.algorithm_input.currentText()
         self.search_mode = self.playback_mode_input.currentText()
+
+        # Запоминаем, нужно ли показать только один шаг.
+        self.manual_step = manual_step
 
         self.canvas.clear_search_result()
 
@@ -493,10 +553,12 @@ class MainWindow(QMainWindow):
         result = thread.result
 
         # Показываем готовый результат выбранным способом.
-        if self.search_mode == "Анимация":
-            self.canvas.start_animation(result)
-        elif self.search_mode == "Пошагово":
+        if self.manual_step:
+            # Подготавливаем просмотр без автоматического воспроизведения.
             self.canvas.start_animation(result, autoplay=False)
+            self.canvas.make_manual_step()
+        elif self.search_mode == "Анимация":
+            self.canvas.start_animation(result)
         else:
             self.canvas.show_result(result)
 
