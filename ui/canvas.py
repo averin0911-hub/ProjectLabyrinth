@@ -1,5 +1,5 @@
 from PyQt6.QtGui import QColor, QPainter, QImage
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QWidget, QLabel
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import QTimer
 
@@ -45,6 +45,7 @@ class MazeCanvas(QWidget):
         self.animation_timer.setInterval(0)  # Пауза между шагами — 100 мс.
         self.animation_timer.timeout.connect(self.animation_step)
 
+        self.coordinates_label = QLabel("Старт: —    Выход: —")
         
 
     def set_maze(self, maze):
@@ -65,6 +66,8 @@ class MazeCanvas(QWidget):
             maze.cols * self.cell_size,
             maze.rows * self.cell_size,
         )
+
+        self.update_coordinates()
 
         self.update()  # Просим Qt перерисовать поле.
 
@@ -204,7 +207,7 @@ class MazeCanvas(QWidget):
             if position is not None:
                 self.update_image_cell(position)
 
-        self.update()
+        self.update_coordinates()
 
         self.update()
 
@@ -299,7 +302,7 @@ class MazeCanvas(QWidget):
             if position is not None:
                 self.update_image_cell(position)
 
-        self.update()
+        self.update_coordinates()
 
         self.update()
 
@@ -504,3 +507,9 @@ class MazeCanvas(QWidget):
         color_index = self.get_cell_color_index(row, col)
 
         self.cell_image.setPixel(col, row, color_index)
+
+
+    def update_coordinates(self):
+        self.coordinates_label.setText(
+            f"Старт: {self.maze.start}    Выход: {self.maze.end}"
+        )

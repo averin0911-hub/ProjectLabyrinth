@@ -117,6 +117,11 @@ class MainWindow(QMainWindow):
 
         self.canvas = MazeCanvas()
 
+        # Координаты справа в нижней строке окна.
+        self.statusBar().addPermanentWidget(
+            self.canvas.coordinates_label
+        )
+
         # Прокрутка позволяет просматривать большие лабиринты.
         scroll_area = QScrollArea()
         scroll_area.setWidget(self.canvas)
