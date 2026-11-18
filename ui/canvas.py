@@ -1,4 +1,4 @@
-from PyQt6.QtGui import QColor, QPainter
+from PyQt6.QtGui import QColor, QPainter, QImage
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import QTimer
@@ -24,6 +24,20 @@ class MazeCanvas(QWidget):
         self.visited_cells = set()
         self.open_cells = set()  # Клетки, ожидающие обработки.
 
+        # Создаём цвета один раз и используем повторно.
+        self.cell_colors = [
+            QColor("#ffffff"),  # 0 — проход.
+            QColor("#1e293b"),  # 1 — стена.
+            QColor("#22c55e"),  # 2 — старт.
+            QColor("#ef4444"),  # 3 — выход.
+            QColor("#fde047"),  # 4 — путь.
+            QColor("#60a5fa"),  # 5 — обработанная клетка.
+            QColor("#7c3aed"),  # 6 — открытая клетка.
+        ]
+
+        self.cell_image = None  # Сохранённая картинка лабиринта.
+        self.image_dirty = True  # Нужно собрать картинку заново.
+
         self.animation_result = None  # Результат для воспроизведения.
         self.animation_index = 0      # Номер следующего шага.
 
@@ -36,6 +50,8 @@ class MazeCanvas(QWidget):
     def set_maze(self, maze):
         # Новый лабиринт начинает новую историю; масштаб её сохраняет.
         if maze is not self.maze:
+            self.cell_image = None
+            self.image_dirty = True
             self.history.clear()
             self.clear_search_result()
 
@@ -67,6 +83,20 @@ class MazeCanvas(QWidget):
         painter = QPainter(self)
         size = self.cell_size
 
+        # Маленькие клетки рисуем общей картинкой.
+        if size < 8:
+            if self.image_dirty:
+                self.rebuild_image()
+
+            # Сохраняем чёткие границы клеток.
+            painter.setRenderHint(
+                QPainter.RenderHint.SmoothPixmapTransform, False
+            )
+
+            painter.drawImage(self.rect(), self.cell_image)
+            painter.end()
+            return
+
         # На маленьких клетках убираем промежутки.
         gap = 1 if size >= 8 else 0
 
@@ -81,22 +111,8 @@ class MazeCanvas(QWidget):
 
         for row in range(first_row, last_row):
             for col in range(first_col, last_col):
-                position = (row, col)
 
-                if position == self.maze.start:
-                    color = "#22c55e"  # Старт.
-                elif position == self.maze.end:
-                    color = "#ef4444"  # Выход.
-                elif self.maze[row, col] == 1:
-                    color = "#1e293b"  # Стена.
-                elif position in self.path_cells:
-                    color = "#fde047"  # Найденный путь.
-                elif position in self.visited_cells:
-                    color = "#60a5fa"  # Обработанная клетка.
-                elif position in self.open_cells:
-                    color = "#7c3aed"  # Открытая клетка.
-                else:
-                    color = "#ffffff"  # Проход.
+                color = self.cell_colors[self.get_cell_color_index(row, col)]
 
                 # Столбец задаёт x, строка задаёт y.
                 painter.fillRect(
@@ -104,7 +120,7 @@ class MazeCanvas(QWidget):
                     row * size,
                     size - gap,
                     size - gap,
-                    QColor(color),
+                    color,
                 )
 
         painter.end()
@@ -145,6 +161,7 @@ class MazeCanvas(QWidget):
             return
 
         # Запоминаем состояние до изменения.
+        old_start, old_end = self.maze.start, self.maze.end
         self.remember_change(row, col)
 
         if self.edit_mode == "Стены / проходы":
@@ -182,6 +199,13 @@ class MazeCanvas(QWidget):
             self.maze.grid[row][col] = 0
             self.maze.set_end(position)
 
+        # Обновляем изменённую клетку и прежние места маркеров.
+        for position in ((row, col), old_start, old_end):
+            if position is not None:
+                self.update_image_cell(position)
+
+        self.update()
+
         self.update()
 
 
@@ -218,6 +242,7 @@ class MazeCanvas(QWidget):
                 if self.maze[r, c] != self.drag_value:
                     self.remember_change(r, c)
                     self.maze.grid[r][c] = self.drag_value
+                    self.update_image_cell((r, c))
 
         self.last_cell = (row, col)
         self.update()
@@ -242,6 +267,7 @@ class MazeCanvas(QWidget):
             return
 
         self.clear_search_result()
+        old_start, old_end = self.maze.start, self.maze.end
 
         self.drag_value = None
         self.last_cell = None
@@ -268,6 +294,13 @@ class MazeCanvas(QWidget):
             r, c = end
             self.maze.grid[r][c] = 3
 
+        # Обновляем клетку и положения маркеров до и после отката.
+        for position in ((row, col), old_start, old_end, start, end):
+            if position is not None:
+                self.update_image_cell(position)
+
+        self.update()
+
         self.update()
 
     def clear_maze(self):
@@ -289,11 +322,14 @@ class MazeCanvas(QWidget):
                 if self.maze[row, col] == 1:
                     self.remember_change(row, col)
                     self.maze.grid[row][col] = 0
+                    self.update_image_cell((row, col))
 
         self.update()
 
 
     def show_result(self, result):
+        self.clear_search_result()
+        self.image_dirty = True
         self.clear_search_result()
 
         # Применяем все события сразу, без таймера.
@@ -342,15 +378,18 @@ class MazeCanvas(QWidget):
                 # Остальные алгоритмы пока показываем прежним способом.
                 position = visited[self.animation_index]
                 self.visited_cells.add(position)
+                self.update_image_cell(position)
             else:
                 # Извлекаем действие и координаты из события.
                 action, position = events[self.animation_index]
                 self.apply_search_event(action, position)
+                self.update_image_cell(position)
         else:
             # После событий показываем итоговый путь.
             path_index = self.animation_index - search_steps
             position = path[path_index]
             self.path_cells.add(position)
+            self.update_image_cell(position)
 
         self.animation_index += 1
 
@@ -368,6 +407,7 @@ class MazeCanvas(QWidget):
         self.animation_index = 0
 
         if self.path_cells or self.visited_cells or self.open_cells:
+            self.image_dirty = True  # Картинку нужно пересобрать без подсветки.
             self.path_cells.clear()
             self.visited_cells.clear()
             self.open_cells.clear()
@@ -383,7 +423,7 @@ class MazeCanvas(QWidget):
         elif action in ("closed", "closed_start", "closed_end"):
             self.open_cells.discard(position)
             self.visited_cells.add(position)
-
+        self.update_image_cell(position)
 
 
     def set_animation_interval(self, milliseconds):
@@ -410,3 +450,57 @@ class MazeCanvas(QWidget):
             self.animation_timer.stop()   # Пауза.
         else:
             self.animation_timer.start()  # Продолжение.
+
+
+    def get_cell_color_index(self, row, col):
+        position = (row, col)
+
+        if position == self.maze.start:
+            return 2
+        if position == self.maze.end:
+            return 3
+        if self.maze[row, col] == 1:
+            return 1
+        if position in self.path_cells:
+            return 4
+        if position in self.visited_cells:
+            return 5
+        if position in self.open_cells:
+            return 6
+
+        return 0
+
+
+
+    def rebuild_image(self):
+        # Один пиксель картинки соответствует одной клетке.
+        self.cell_image = QImage(
+            self.maze.cols,
+            self.maze.rows,
+            QImage.Format.Format_Indexed8,
+        )
+
+        # Номера цветов соответствуют self.cell_colors.
+        self.cell_image.setColorTable(
+            [color.rgb() for color in self.cell_colors]
+        )
+
+        for row in range(self.maze.rows):
+            for col in range(self.maze.cols):
+                color_index = self.get_cell_color_index(row, col)
+
+                # У картинки сначала x, затем y.
+                self.cell_image.setPixel(col, row, color_index)
+
+        self.image_dirty = False  # Картинка соответствует лабиринту.
+
+
+    def update_image_cell(self, position):
+        # Устаревшую картинку позже полностью пересоберём.
+        if self.cell_image is None or self.image_dirty:
+            return
+
+        row, col = position
+        color_index = self.get_cell_color_index(row, col)
+
+        self.cell_image.setPixel(col, row, color_index)
