@@ -95,6 +95,15 @@ class MainWindow(QMainWindow):
 
         parameters_layout.addRow("Удаление стен:", self.wall_removal_input)
 
+        self.seed_input = QSpinBox()
+        self.seed_input.setRange(-1, 2_147_483_647)
+
+        # Вместо минимального значения показываем подпись.
+        self.seed_input.setSpecialValueText("Случайный")
+        self.seed_input.setValue(-1)
+
+        parameters_layout.addRow("Seed:", self.seed_input)
+
         self.generate_button = QPushButton("Сгенерировать")
         self.generate_button.setProperty("role", "primary")
         parameters_layout.addRow(self.generate_button)
@@ -386,13 +395,22 @@ class MainWindow(QMainWindow):
             return
 
         chance = self.wall_removal_input.value() / 100
+        seed = self.seed_input.value()
+
+        # None позволяет генератору выбрать случайное начальное состояние.
+        if seed == -1:
+            seed = None
+        
         self.canvas.clear_search_result()
 
         # Создаём лабиринт в фоне.
         self.search_thread = TaskThread(
             generate_maze,
             args=(width, height),
-            kwargs={"wall_removal_chance": chance},
+            kwargs={
+                "wall_removal_chance": chance,
+                "seed": seed,
+            },
             parent=self,
         )
 

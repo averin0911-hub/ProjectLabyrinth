@@ -108,55 +108,56 @@ class BidirectionalBFS:
         found = False
 
         while queue_start and queue_end:
-            # Шаг со стороны меньшей очереди сохраняет баланс волновых фронтов.
-            if len(queue_start) <= len(queue_end):
-                current = queue_start.popleft()
-                visited_order.append(current)
-                events.append(("closed_start", current))
+            # Сначала обрабатываем со стороны старта
+            current = queue_start.popleft()
+            visited_order.append(current)
+            events.append(("closed_start", current))
 
-                if current in visited_end:
-                    meeting_cell = current
-                    found = True
-                    break
+            if current in visited_end:
+                meeting_cell = current
+                found = True
+                break
 
-                for neighbor in self.maze.neighbors(current[0], current[1]):
-                    if neighbor not in visited_start:
-                        visited_start.add(neighbor)
-                        previous_start[neighbor] = current
-                        queue_start.append(neighbor)
-                        events.append(("open_start", neighbor))
+            for neighbor in self.maze.neighbors(current[0], current[1]):
+                if neighbor not in visited_start:
+                    visited_start.add(neighbor)
+                    previous_start[neighbor] = current
+                    queue_start.append(neighbor)
+                    events.append(("open_start", neighbor))
 
-                        # Пересечение с обратным волновым фронтом.
-                        if neighbor in visited_end:
-                            meeting_cell = neighbor
-                            found = True
-                            break
-                if found:
-                    break
-            else:
-                current = queue_end.popleft()
-                visited_order.append(current)
-                events.append(("closed_end", current))
+                    # Пересечение с обратным волновым фронтом.
+                    if neighbor in visited_end:
+                        meeting_cell = neighbor
+                        found = True
+                        break
+            if found:
+                break
 
-                if current in visited_start:
-                    meeting_cell = current
-                    found = True
-                    break
 
-                for neighbor in self.maze.neighbors(current[0], current[1]):
-                    if neighbor not in visited_end:
-                        visited_end.add(neighbor)
-                        previous_end[neighbor] = current
-                        queue_end.append(neighbor)
-                        events.append(("open_end", neighbor))
+            # Затем обрабатываем со стороны конца
+            current = queue_end.popleft()
+            visited_order.append(current)
+            events.append(("closed_end", current))
 
-                        # Пересечение с прямым волновым фронтом.
-                        if neighbor in visited_start:
-                            meeting_cell = neighbor
-                            found = True
-                            break
-                if found:
-                    break
+            if current in visited_start:
+                meeting_cell = current
+                found = True
+                break
+
+            for neighbor in self.maze.neighbors(current[0], current[1]):
+                if neighbor not in visited_end:
+                    visited_end.add(neighbor)
+                    previous_end[neighbor] = current
+                    queue_end.append(neighbor)
+                    events.append(("open_end", neighbor))
+
+                    # Пересечение с прямым волновым фронтом.
+                    if neighbor in visited_start:
+                        meeting_cell = neighbor
+                        found = True
+                        break
+            if found:
+                break
 
         if not found or meeting_cell is None:
             return {
