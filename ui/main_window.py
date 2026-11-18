@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
 )
 from PyQt6.QtGui import QKeySequence, QShortcut, QColor
-from PyQt6.QtCore import Qt, QEvent
+from PyQt6.QtCore import Qt, QEvent, QPointF
 from core.maze import generate_maze
 from ui.canvas import MazeCanvas
 import json
@@ -763,7 +763,13 @@ class MainWindow(QMainWindow):
                 # Во время фонового расчёта масштабирование заблокировано.
                 if self.zoom_input.isEnabled() and delta != 0:
                     direction = 1 if delta > 0 else -1
-                    self.zoom_input.stepBy(direction)
+
+                    # Переводим положение мыши в координаты видимой области.
+                    mouse_position = watched.mapTo(
+                        self.scroll_area.viewport(), event.position()
+                    )
+
+                    self.zoom_at_cursor(direction, mouse_position)
 
                 # Событие обработано; прокручивать поле не нужно.
                 return True
@@ -857,3 +863,38 @@ class MainWindow(QMainWindow):
                 border-top: 1px solid #d5deeb;
             }
         """)
+
+
+    def zoom_at_cursor(self, direction, mouse_position):
+        viewport = self.scroll_area.viewport()
+
+        # Координаты точки относительно самого лабиринта.
+        position = self.canvas.mapFrom(viewport, mouse_position)
+        inside = self.canvas.rect().contains(position.toPoint())
+        old_size = self.canvas.cell_size
+
+        # Регулятор сам изменит размер клеток через существующий сигнал.
+        self.zoom_input.stepBy(direction)
+
+        if not inside:
+            return
+
+        # Используем фактический размер клетки после округления.
+        scale = self.canvas.cell_size / old_size
+
+        # Находим новое положение той же точки в видимой области.
+        new_position = self.canvas.mapTo(
+            viewport,
+            QPointF(position.x() * scale, position.y() * scale),
+        )
+
+        horizontal = self.scroll_area.horizontalScrollBar()
+        vertical = self.scroll_area.verticalScrollBar()
+
+        # Компенсируем смещение точки прокруткой.
+        horizontal.setValue(round(
+            horizontal.value() + new_position.x() - mouse_position.x()
+        ))
+        vertical.setValue(round(
+            vertical.value() + new_position.y() - mouse_position.y()
+        ))
