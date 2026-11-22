@@ -2,7 +2,7 @@ import json
 
 from core.maze import Maze
 
-MAX_MAZE_SIZE = 100_001
+MAX_MAZE_SIZE = 2001
 MAX_FILE_SIZE = 10 * 1024 * 1024  # Максимум 10 МиБ.
 
 

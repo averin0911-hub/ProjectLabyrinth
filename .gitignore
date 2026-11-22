@@ -3,3 +3,8 @@
 .venv/
 .pytest_cache/
 *.py[cod]
+
+# Результаты сборки PyInstaller.
+/build/
+/dist/
+/ProjectLabyrinth.spec
