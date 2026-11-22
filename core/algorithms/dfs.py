@@ -54,6 +54,7 @@ class DFS:
         - path: список координат от старта до выхода
         - visited_order: список посещённых клеток в порядке обхода
         - visited_count: количество просмотренных клеток
+        - events: действия open/closed с координатами для воспроизведения поиска
         - steps: то же значение, что и distance
         - start: стартовая клетка
         - end: конечная клетка
@@ -71,6 +72,7 @@ class DFS:
         if not self.maze.is_free(*end_cell):
             raise ValueError("Конечная клетка недопустима")
 
+        # События сохраняем для последующего показа открытого и закрытого списков.
         events = [("open", start_cell)]
 
         # Если старт совпадает с финишем, возвращаем нулевой путь.
@@ -93,6 +95,7 @@ class DFS:
 
         # Хронологический список для пошаговой анимации и множество посещённых.
         visited_order: list[tuple[int, int]] = []
+        # Отмечаем обнаруженные клетки сразу, чтобы не помещать их в стек повторно.
         visited_set: set[tuple[int, int]] = {start_cell}
 
         while stack:
@@ -134,6 +137,7 @@ class DFS:
             path.append(current)
             current = previous.get(current)
 
+        # Цепочка предков собрана от выхода; пользователю нужен порядок от старта.
         path.reverse()
         distance = len(path) - 1
 

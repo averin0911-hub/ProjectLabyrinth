@@ -15,6 +15,7 @@ MAX_SIZE = 500**10
 def read_size(prompt: str, default: int = 10) -> int:
     """Читает размер поля; Enter оставляет значение по умолчанию."""
     while True:
+        # strip() позволяет принять число с пробелами или пустой ввод по Enter.
         value = input(f"{prompt} [{default}]: ").strip()
         if not value:
             return default
@@ -34,6 +35,7 @@ def show_maze(
     visited: list[tuple[int, int]] | None = None,
 ) -> None:
     """Рисует результат поверх поля, не меняя исходную матрицу лабиринта."""
+    # Множества ускоряют проверку принадлежности клетки маршруту и истории поиска.
     path_cells = set(path or [])
     visited_cells = set(visited or [])
     print(f"\nЛабиринт: {maze.cols} × {maze.rows}")
@@ -41,6 +43,7 @@ def show_maze(
         line = []
         for col in range(maze.cols):
             cell = (row, col)
+            # Маркеры и стены имеют приоритет над символами подсветки.
             if cell == maze.start:
                 symbol = "S"
             elif cell == maze.end:
@@ -67,6 +70,7 @@ def measure_algorithm(
     algorithm: Callable[[Maze], dict[str, object]],
 ) -> tuple[dict[str, object], float]:
     """Измеряет поиск вместе со сбором результата, без ввода и печати."""
+    # Печать результата выполняется после замера и не влияет на время поиска.
     started = perf_counter()
     result = algorithm(maze)
     elapsed_ms = (perf_counter() - started) * 1000
@@ -84,6 +88,7 @@ def run_algorithm(
     except ValueError as error:
         print(f"\n{name}: {error}")
         return None
+    # Недостижимый выход — обычный результат поиска, а не ошибка входных данных.
     if result["distance"] is None:
         print(f"\n{name}: Путь до выхода не существует")
         return None
@@ -122,6 +127,7 @@ def compare_algorithms(maze: Maze) -> None:
             print(f"{name}: Путь до выхода не существует")
             return
         
+        # Оставляем для отчёта только числа, освобождая маршрут и события поиска.
         measurements.append(
             (name, result["distance"], result["visited_count"], elapsed_ms)
         )
@@ -143,6 +149,7 @@ def compare_algorithms(maze: Maze) -> None:
 
 
 def main() -> None:
+    # Меню работает с одним текущим лабиринтом, пока пользователь не создаст новый.
     print("Поиск пути в лабиринте — консольная демонстрация")
     maze = generate_maze(10, 10)
     show_maze(maze)
@@ -184,6 +191,7 @@ def main() -> None:
             else:
                 print("Неизвестный пункт меню. Введите число от 0 до 8.")
     except (EOFError, KeyboardInterrupt):
+        # Завершаем меню без traceback при закрытии ввода или нажатии Ctrl+C.
         print()
     print("Программа завершена.")
 

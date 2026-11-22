@@ -55,6 +55,7 @@ class BFS:
         - path: список координат от старта до выхода
         - visited_order: список посещённых клеток в порядке обхода
         - visited_count: количество просмотренных клеток
+        - events: действия open/closed с координатами для воспроизведения поиска
         - steps: то же значение, что и distance
         - start: стартовая клетка
         - end: конечная клетка
@@ -74,7 +75,7 @@ class BFS:
         if not self.maze.is_free(*end_cell):
             raise ValueError("Конечная клетка недопустима")
 
-        # В начале в очереди находится только старт.
+        # open означает обнаружение клетки, closed — её обработку.
         events = [("open", start_cell)]
         # Если старт совпадает с финишем, сразу возвращаем результат.
         if start_cell == end_cell:
@@ -98,6 +99,7 @@ class BFS:
 
         # Для визуализации — порядок обработки клеток.
         visited_order: list[tuple[int, int]] = []
+        # Запоминаем клетку при добавлении в очередь, чтобы не добавлять её повторно.
         visited_set: set[tuple[int, int]] = {start_cell}
 
         while queue:
@@ -141,6 +143,7 @@ class BFS:
             path.append(current)
             current = previous.get(current)
 
+        # Предки ведут от выхода к старту; разворачиваем маршрут для отображения.
         path.reverse()
         distance = len(path) - 1
 

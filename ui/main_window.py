@@ -76,7 +76,7 @@ class MainWindow(QMainWindow):
         # Форма: подпись слева, поле ввода справа.
         parameters_layout = QFormLayout(parameters_box)
 
-        # Поля целых чисел от 5 до 600; начальный размер — 20 × 20.
+        # Предел берём из общего ограничения; начальный размер — 21 × 21.
         self.width_input = QSpinBox()
         self.width_input.setRange(5, MAX_MAZE_SIZE)
         self.width_input.setValue(21)
@@ -88,6 +88,7 @@ class MainWindow(QMainWindow):
         parameters_layout.addRow("Ширина:", self.width_input)
         parameters_layout.addRow("Высота:", self.height_input)
 
+        # Проценты из этого поля при генерации преобразуются в вероятность 0..1.
         self.wall_removal_input = QSpinBox()
         self.wall_removal_input.setRange(0, 100)
         self.wall_removal_input.setSuffix(" %")
@@ -272,6 +273,7 @@ class MainWindow(QMainWindow):
 
         labels = ["Алгоритм", "Длина пути", "Обработано клеток", "Время"]
 
+        # Слева название показателя, справа его значение после поиска.
         self.stats_table = QTableWidget(len(labels), 2)
         self.style_table(self.stats_table)
 
@@ -286,6 +288,7 @@ class MainWindow(QMainWindow):
         )
         self.stats_table.setAlternatingRowColors(False)
         self.stats_table.setShowGrid(False)
+        # Высота строк совпадает с настройкой style_table; ещё два пикселя — рамка.
         self.stats_table.setFixedHeight(len(labels) * 34 + 2)
 
         for row, label in enumerate(labels):
@@ -303,7 +306,7 @@ class MainWindow(QMainWindow):
         stats_layout.addWidget(self.stats_table)
 
 
-        # Создание сводной таблицы
+        # Статистику одного запуска и сравнение храним в отдельных блоках.
         results_layout = QVBoxLayout(self.results_panel)
         results_layout.addWidget(stats_box)
 
@@ -399,6 +402,7 @@ class MainWindow(QMainWindow):
         if not self.confirm_large_maze(width, height):
             return
 
+        # Генератор принимает вероятность, а в интерфейсе пользователь задаёт проценты.
         chance = self.wall_removal_input.value() / 100
         seed = self.seed_input.value()
 
@@ -419,6 +423,7 @@ class MainWindow(QMainWindow):
             parent=self,
         )
 
+        # Готовое поле передадим виджету после завершения расчёта, в главном потоке.
         self.search_thread.finished.connect(self.finish_generation)
 
         self.set_search_busy(True)
@@ -426,6 +431,7 @@ class MainWindow(QMainWindow):
         self.search_thread.start()
 
     def finish_generation(self):
+        # Сохраняем завершённый поток, затем освобождаем место для следующей задачи.
         thread = self.search_thread
         self.search_thread = None
 
@@ -462,6 +468,7 @@ class MainWindow(QMainWindow):
         if not filename:
             return
 
+        # Сохраняем состояние лабиринта; подсветка и таблицы результатов сюда не входят.
         data = {
             "version": 1,
             "grid": self.maze.grid,
@@ -502,6 +509,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Ошибка загрузки", str(error))
             return
 
+        # Даже корректный файл большого размера открываем только после подтверждения.
         if not self.confirm_large_maze(maze.cols, maze.rows):
             return
 
@@ -509,6 +517,7 @@ class MainWindow(QMainWindow):
         self.maze = maze
         self.canvas.set_maze(maze)
 
+        # Поля ввода должны отражать размеры загруженного лабиринта.
         self.width_input.setValue(maze.cols)
         self.height_input.setValue(maze.rows)
 
@@ -539,9 +548,10 @@ class MainWindow(QMainWindow):
         if self.maze is None or self.search_thread is not None:
             return
 
+        # В данных пункта хранится функция алгоритма, а в тексте — название для таблицы.
         algorithm = self.algorithm_input.currentData()
 
-        # Запоминаем настройки этого запуска.
+        # Запоминаем настройки этого запуска, чтобы использовать их после расчёта.
         self.search_name = self.algorithm_input.currentText()
         self.search_mode = self.playback_mode_input.currentText()
 
@@ -582,6 +592,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Ошибка поиска", thread.error)
             return
 
+        # Здесь алгоритм уже завершён: дальнейшая анимация воспроизводит его события.
         result = thread.result
 
         # Показываем готовый результат выбранным способом.
@@ -594,6 +605,7 @@ class MainWindow(QMainWindow):
         else:
             self.canvas.show_result(result)
 
+        # Отсутствие пути не мешает показать исследованные клетки.
         if result["distance"] is None:
             distance_text = "Нет пути"
         else:
@@ -622,6 +634,7 @@ class MainWindow(QMainWindow):
             algorithms.append((name, algorithm))
 
         self.canvas.clear_search_result()
+        # Новый запуск сравнения заменяет предыдущую таблицу.
         self.comparison_table.setRowCount(0)
 
         self.search_thread = TaskThread(
@@ -630,6 +643,7 @@ class MainWindow(QMainWindow):
             parent=self,
         )
 
+        # Все пять измерений выполняются в фоне; таблицу заполним после finished.
         self.search_thread.finished.connect(self.finish_comparison)
 
         self.set_search_busy(True)
@@ -637,6 +651,7 @@ class MainWindow(QMainWindow):
         self.search_thread.start()
 
     def finish_comparison(self):
+        # Обработчик сигнала работает в потоке интерфейса, где можно менять таблицу.
         thread = self.search_thread
         self.search_thread = None
 
@@ -668,6 +683,7 @@ class MainWindow(QMainWindow):
 
 
     def style_table(self, table):
+        # Общие настройки применяются к таблице одного запуска и таблице сравнения.
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.verticalHeader().hide()
         table.verticalHeader().setDefaultSectionSize(34)
@@ -700,6 +716,7 @@ class MainWindow(QMainWindow):
         """)
 
     def update_statistics(self, values):
+        # Порядок values совпадает с подписями строк, созданными в __init__.
         for row, value in enumerate(values):
             item = self.stats_table.item(row, 1)
             item.setText(str(value))
@@ -784,6 +801,7 @@ class MainWindow(QMainWindow):
 
 
     def apply_style(self):
+        # QSS задаёт оформление; свойство role="primary" выделяет основные кнопки.
         # Имя позволяет отдельно оформить фон центрального контейнера.
         self.centralWidget().setObjectName("appCentral")
 
@@ -871,6 +889,7 @@ class MainWindow(QMainWindow):
 
 
     def zoom_at_cursor(self, direction, mouse_position):
+        # mouse_position задана относительно видимой области, а не всего поля.
         viewport = self.scroll_area.viewport()
 
         # Координаты точки относительно самого лабиринта.
@@ -897,6 +916,7 @@ class MainWindow(QMainWindow):
         vertical = self.scroll_area.verticalScrollBar()
 
         # Компенсируем смещение точки прокруткой.
+        # Полосы прокрутки сами ограничивают значения доступным диапазоном.
         horizontal.setValue(round(
             horizontal.value() + new_position.x() - mouse_position.x()
         ))

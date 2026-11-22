@@ -11,8 +11,8 @@ class A_STAR:
 
     Если `maze.end` не задан, алгоритм автоматически ищет выход по клетке со
     значением 3. Для визуализации удобно использовать:
-    - `visited_order` — порядок обхода клеток (жёлтый),
-    - `path` — кратчайший путь до выхода (синий).
+    - `visited_order` — порядок обработки клеток,
+    - `path` — кратчайший путь до выхода.
     """
 
     def __init__(
@@ -45,6 +45,8 @@ class A_STAR:
         return exit_position
 
     def heuristic(self, curr: tuple[int, int], next: tuple[int, int]):
+        # Манхэттенское расстояние подходит для движения по четырём направлениям.
+        # Оно не учитывает стены и не завышает число шагов до цели.
         return abs(curr[0] - next[0]) + abs(curr[1] - next[1])
 
     def solve(
@@ -59,6 +61,7 @@ class A_STAR:
         - path: список координат от старта до выхода
         - visited_order: список посещённых клеток в порядке обхода
         - visited_count: количество просмотренных клеток
+        - events: действия open/closed с координатами для воспроизведения поиска
         - steps: то же значение, что и distance
         - start: стартовая клетка
         - end: конечная клетка
@@ -78,6 +81,7 @@ class A_STAR:
         if not self.maze.is_free(*end_cell):
             raise ValueError("Конечная клетка недопустима")
 
+        # События открытия и обработки нужны GUI для пошагового просмотра.
         events = [("open", start_cell)]
 
         # Если старт совпадает с финишем, сразу возвращаем результат.
@@ -116,7 +120,8 @@ class A_STAR:
             # Берём клетку с минимальной оценкой f; current_distance хранит g.
             _, current_distance, current = heappop(queue)
 
-            # Если клетку уже обработали — пропускаем.
+            # В куче могут остаться старые записи клетки после улучшения оценки.
+            # Уже обработанную клетку пропускаем.
             if current in visited_set:
                 continue
 
@@ -130,7 +135,7 @@ class A_STAR:
 
             # Проверяем соседей.
             for neighbor in self.maze.neighbors(current[0], current[1]):
-                candidate_distance = current_distance + 1
+                candidate_distance = current_distance + 1  # Каждый переход стоит один шаг.
                 candidate_f_score = candidate_distance + self.heuristic(neighbor, end_cell)
 
                 # Для одной клетки h неизменно: меньшая f означает более короткий путь.
@@ -164,6 +169,7 @@ class A_STAR:
             path.append(current)
             current = previous.get(current)
 
+        # Восстановление шло от выхода по предкам; меняем порядок на прямой.
         path.reverse()
         # В клетке выхода h = 0, поэтому f равна фактической длине пути g.
         distance = f_scores[end_cell]

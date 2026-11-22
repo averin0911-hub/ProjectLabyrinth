@@ -20,6 +20,7 @@ class MazeCanvas(QWidget):
 
         self.history = []  # История изменений.
 
+        # Множества позволяют быстро узнать, какой подсветкой покрыта клетка.
         self.path_cells = set()
         self.visited_cells = set()
         self.open_cells = set()  # Клетки, ожидающие обработки.
@@ -38,13 +39,15 @@ class MazeCanvas(QWidget):
         self.cell_image = None  # Сохранённая картинка лабиринта.
         self.image_dirty = True  # Нужно собрать картинку заново.
 
+        # Данные поиска храним целиком, а animation_index задаёт границу просмотра.
         self.animation_result = None  # Результат для воспроизведения.
         self.animation_index = 0      # Номер следующего шага.
 
         self.animation_timer = QTimer(self)
-        self.animation_timer.setInterval(0)  # Пауза между шагами — 100 мс.
+        self.animation_timer.setInterval(0)  # Главное окно передаст выбранную задержку.
         self.animation_timer.timeout.connect(self.animation_step)
 
+        # Главное окно разместит эту подпись в своей нижней строке состояния.
         self.coordinates_label = QLabel("Старт: —    Выход: —")
         
 
@@ -86,8 +89,9 @@ class MazeCanvas(QWidget):
         painter = QPainter(self)
         size = self.cell_size
 
-        # Маленькие клетки рисуем общей картинкой.
+        # Маленькие клетки рисуем общей картинкой, не перебирая их при каждом кадре.
         if size < 8:
+            # Пересобираем картинку только после изменений, затронувших всё поле.
             if self.image_dirty:
                 self.rebuild_image()
 
@@ -100,7 +104,7 @@ class MazeCanvas(QWidget):
             painter.end()
             return
 
-        # На маленьких клетках убираем промежутки.
+        # При крупном масштабе промежутки образуют видимую сетку.
         gap = 1 if size >= 8 else 0
 
         # Серый фон будет виден в промежутках между клетками.
@@ -164,6 +168,7 @@ class MazeCanvas(QWidget):
             return
 
         # Запоминаем состояние до изменения.
+        # Старые координаты нужны, чтобы обновить пиксели убранных маркеров.
         old_start, old_end = self.maze.start, self.maze.end
         self.remember_change(row, col)
 
@@ -227,9 +232,11 @@ class MazeCanvas(QWidget):
             self.last_cell = None
             return
 
+        # Без предыдущей клетки начинаем движение с текущей позиции.
         old_row, old_col = self.last_cell or (row, col)
 
         # Заполняем промежуточные клетки при быстром движении.
+        # Минимум один шаг исключает деление на ноль, если мышь осталась в клетке.
         steps = max(1, abs(row - old_row), abs(col - old_col))
 
         for step in range(steps + 1):
@@ -258,6 +265,7 @@ class MazeCanvas(QWidget):
 
 
     def remember_change(self, row, col):
+        # Правка поля делает прежний результат поиска неактуальным.
         self.clear_search_result()
         # Сохраняем значение клетки и положение маркеров.
         self.history.append((
@@ -285,6 +293,7 @@ class MazeCanvas(QWidget):
                 self.maze.grid[r][c] = 0
 
         # Восстанавливаем клетку и прежние координаты маркеров.
+        # Одних координат недостаточно: значения 2 и 3 тоже должны вернуться в матрицу.
         self.maze.grid[row][col] = value
         self.maze.start = start
         self.maze.end = end
@@ -332,6 +341,7 @@ class MazeCanvas(QWidget):
 
     def show_result(self, result):
         self.clear_search_result()
+        # Весь результат показываем сразу, поэтому пересоберём картинку целиком.
         self.image_dirty = True
         self.clear_search_result()
 
@@ -364,12 +374,13 @@ class MazeCanvas(QWidget):
         visited = self.animation_result["visited_order"]
         path = self.animation_result["path"]
 
-        # Пока события есть только у BFS.
+        # Поддерживаем и старый формат результата, в котором нет журнала events.
         if events is None:
             search_steps = len(visited)
         else:
             search_steps = len(events)
 
+        # Один индекс проходит сначала события поиска, затем клетки маршрута.
         total = search_steps + len(path)
 
         if self.animation_index >= total:
@@ -378,7 +389,7 @@ class MazeCanvas(QWidget):
 
         if self.animation_index < search_steps:
             if events is None:
-                # Остальные алгоритмы пока показываем прежним способом.
+                # Без журнала событий используем порядок обработанных клеток.
                 position = visited[self.animation_index]
                 self.visited_cells.add(position)
                 self.update_image_cell(position)
@@ -389,11 +400,13 @@ class MazeCanvas(QWidget):
                 self.update_image_cell(position)
         else:
             # После событий показываем итоговый путь.
+            # Вычитаем уже пройденные события, получая индекс внутри path.
             path_index = self.animation_index - search_steps
             position = path[path_index]
             self.path_cells.add(position)
             self.update_image_cell(position)
 
+        # Индекс сдвигаем после показа; на паузе он сохраняет место продолжения.
         self.animation_index += 1
 
         # Перерисовываем изменившуюся клетку.
@@ -418,12 +431,14 @@ class MazeCanvas(QWidget):
 
 
     def apply_search_event(self, action, position):
+        # Суффиксы start/end относятся к двум волнам двунаправленного BFS.
         if action in ("open", "open_start", "open_end"):
             # Обработанная клетка сохраняет голубой цвет.
             if position not in self.visited_cells:
                 self.open_cells.add(position)
 
         elif action in ("closed", "closed_start", "closed_end"):
+            # После обработки клетка переходит из открытого списка в закрытый.
             self.open_cells.discard(position)
             self.visited_cells.add(position)
         self.update_image_cell(position)
@@ -458,6 +473,7 @@ class MazeCanvas(QWidget):
     def get_cell_color_index(self, row, col):
         position = (row, col)
 
+        # Маркеры и стены важнее подсветки; итоговый путь важнее посещённых клеток.
         if position == self.maze.start:
             return 2
         if position == self.maze.end:
@@ -483,7 +499,7 @@ class MazeCanvas(QWidget):
             QImage.Format.Format_Indexed8,
         )
 
-        # Номера цветов соответствуют self.cell_colors.
+        # Indexed8 хранит в пикселе номер цвета из палитры self.cell_colors.
         self.cell_image.setColorTable(
             [color.rgb() for color in self.cell_colors]
         )
@@ -506,6 +522,7 @@ class MazeCanvas(QWidget):
         row, col = position
         color_index = self.get_cell_color_index(row, col)
 
+        # Меняем только пиксель; запрос перерисовки экрана делает вызывающий метод.
         self.cell_image.setPixel(col, row, color_index)
 
 

@@ -57,6 +57,7 @@ class BidirectionalBFS:
         - path: список координат от старта до выхода
         - visited_order: список посещённых клеток обеими волнами в порядке обхода
         - visited_count: суммарное количество просмотренных клеток
+        - events: действия open/closed с суффиксом стороны поиска
         - steps: то же значение, что и distance
         - start: стартовая клетка
         - end: конечная клетка
@@ -74,6 +75,7 @@ class BidirectionalBFS:
         if not self.maze.is_free(*end_cell):
             raise ValueError("Конечная клетка недопустима")
 
+        # Суффиксы start/end позволяют различить события двух волн.
         events = [("open_start", start_cell)]
 
         # Если старт совпадает с финишем, возвращаем нулевой путь.
@@ -99,6 +101,7 @@ class BidirectionalBFS:
         previous_start: dict[tuple[int, int], tuple[int, int] | None] = {start_cell: None}
         previous_end: dict[tuple[int, int], tuple[int, int] | None] = {end_cell: None}
 
+        # Для каждой стороны отдельно храним все уже обнаруженные клетки.
         visited_start: set[tuple[int, int]] = {start_cell}
         visited_end: set[tuple[int, int]] = {end_cell}
 
@@ -108,7 +111,8 @@ class BidirectionalBFS:
         found = False
 
         while queue_start and queue_end:
-            # Сначала обрабатываем со стороны старта
+            # Чередуем по одной клетке двух очередей для показа обеих волн.
+            # Сначала обрабатываем клетку со стороны старта.
             current = queue_start.popleft()
             visited_order.append(current)
             events.append(("closed_start", current))
@@ -134,7 +138,7 @@ class BidirectionalBFS:
                 break
 
 
-            # Затем обрабатываем со стороны конца
+            # Затем обрабатываем клетку со стороны выхода.
             current = queue_end.popleft()
             visited_order.append(current)
             events.append(("closed_end", current))
@@ -159,6 +163,7 @@ class BidirectionalBFS:
             if found:
                 break
 
+        # Если одна из очередей опустела до встречи, соединить точки не удалось.
         if not found or meeting_cell is None:
             return {
                 "distance": None,
@@ -181,6 +186,7 @@ class BidirectionalBFS:
 
         # Дописываем вторую половину: от точки встречи до выхода.
         path_to_end: list[tuple[int, int]] = []
+        # Начинаем с предка: сама точка встречи уже вошла в первую половину.
         step = previous_end.get(meeting_cell)
         while step is not None:
             path_to_end.append(step)

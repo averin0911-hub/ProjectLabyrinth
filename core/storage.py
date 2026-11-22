@@ -2,23 +2,26 @@ import json
 
 from core.maze import Maze
 
-MAX_MAZE_SIZE = 2001
+MAX_MAZE_SIZE = 2001  # Общий предел размеров для загрузки и полей ввода в GUI.
 MAX_FILE_SIZE = 10 * 1024 * 1024  # Максимум 10 МиБ.
 
 
 def load_maze(filename):
-    # Читаем файл с ограничением размера.
+    # Один дополнительный байт позволяет заметить превышение лимита,
+    # не загружая в память весь слишком большой файл.
     with open(filename, "rb") as file:
         content = file.read(MAX_FILE_SIZE + 1)
 
     if len(content) > MAX_FILE_SIZE:
         raise ValueError("Файл слишком большой: максимум 10 МиБ")
 
+    # Ошибку разбора JSON перехватит окно и покажет пользователю.
     data = json.loads(content)
 
     if not isinstance(data, dict):
         raise ValueError("В файле должен находиться объект JSON")
 
+    # Проверяем именно int: логические True/False тоже являются подклассом int.
     if type(data.get("version")) is not int or data["version"] != 1:
         raise ValueError("Неподдерживаемая версия формата")
 
@@ -30,11 +33,12 @@ def load_maze(filename):
     if not isinstance(grid[0], list) or not 5 <= len(grid[0]) <= MAX_MAZE_SIZE:
         raise ValueError(f"Ширина должна быть от 5 до {MAX_MAZE_SIZE} клеток")
 
+    # После проверки формы матрицы можно безопасно обходить её по строкам и столбцам.
     if any(not isinstance(row, list) or len(row) != len(grid[0]) for row in grid):
         raise ValueError("Все строки должны иметь одинаковую длину")
 
     maze = Maze(grid)
-    markers = {2: None, 3: None}
+    markers = {2: None, 3: None}  # Здесь запоминаем координаты найденных маркеров.
 
     # Проверяем клетки, рамку и количество маркеров.
     for row in range(maze.rows):
@@ -67,6 +71,7 @@ def load_maze(filename):
         ):
             raise ValueError(f"Некорректные координаты {name}")
 
+    # Возвращаем объект только после проверки всех клеток и координат.
     maze.set_start(markers[2])
     maze.set_end(markers[3])
     return maze

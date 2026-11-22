@@ -11,13 +11,16 @@ from core.maze import Maze
 
 
 ALL_ALGORITHMS = [BFS, BidirectionalBFS, Dijkstra, A_STAR, DFS]
+# DFS ищет допустимый маршрут, поэтому в проверке кратчайшего пути не участвует.
 SHORTEST_PATH_ALGORITHMS = [BFS, BidirectionalBFS, Dijkstra, A_STAR]
 
 
+# Параметризация запускает тест отдельно для каждого алгоритма из списка.
 @pytest.mark.parametrize("algorithm", ALL_ALGORITHMS)
 def test_valid_path(algorithm):
     # Единственный маршрут обходит стену снизу.
     maze = Maze([[2, 1, 3], [0, 0, 0]])
+    # Копируем каждую строку, чтобы изменения исходного поля не затронули копию.
     before = [row[:] for row in maze.grid]
 
     result = algorithm(maze).solve()
@@ -26,7 +29,7 @@ def test_valid_path(algorithm):
     assert path[0] == (0, 0)
     assert path[-1] == (0, 2)
     assert result["distance"] == result["steps"] == len(path) - 1 == 4
-    assert len(path) == len(set(path))
+    assert len(path) == len(set(path))  # Повторяющихся клеток в маршруте быть не должно.
 
     for row, col in path:
         # Проверяем границы и стены независимо от методов Maze.
@@ -74,6 +77,7 @@ def test_no_path(algorithm):
 def test_start_equals_end(algorithm):
     maze = Maze([[2]])
 
+    # Передаём выход явно: отдельной клетки с меткой 3 на таком поле нет.
     result = algorithm(maze).solve(end=(0, 0))
 
     assert result["path"] == [(0, 0)]

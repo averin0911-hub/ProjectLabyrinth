@@ -11,6 +11,7 @@ class Maze:
             start: Координаты стартовой клетки в формате (row, col).
             end: Координаты конечной клетки в формате (row, col).
         """
+        # Храним переданную матрицу без копирования: редактор меняет её на месте.
         self.grid = grid  # Матрица лабиринта
         self.rows = len(grid)  # Кол-во строк в матрице
         self.cols = len(grid[0]) if grid else 0  # Кол-во столбцов в матрице
@@ -83,6 +84,7 @@ class Maze:
         if not self.is_free(row, col):
             raise ValueError("Недопустимая начальная точка")
 
+        # Координаты старта хранятся отдельно; метку 2 меняет редактор поля.
         self.start = position
 
     def set_end(self, position: tuple[int, int]) -> None:
@@ -148,8 +150,10 @@ def generate_maze(
     if not 0 <= wall_removal_chance <= 1:
         raise ValueError("Вероятность удаления стен должна быть от 0 до 1")
 
+    # Локальный генератор не зависит от случайных вызовов в других частях программы.
     rng = random.Random(seed)
     grid = [[1 for _ in range(width)] for _ in range(height)]
+    # Нечётные координаты оставляют между узловыми клетками место для стен.
     start = (
         rng.randrange(1, height - 1, 2),
         rng.randrange(1, width - 1, 2),
@@ -179,10 +183,12 @@ def generate_maze(
                 unvisited_neighbors.append(next_cell)
 
         if not unvisited_neighbors:
+            # Из тупика возвращаемся к предыдущей клетке в стеке.
             stack.pop()
             continue
 
         next_row, next_col = rng.choice(unvisited_neighbors)
+        # Пробиваем стену посередине между текущей и выбранной клетками.
         wall_row = (row + next_row) // 2
         wall_col = (col + next_col) // 2
         grid[wall_row][wall_col] = 0
@@ -191,6 +197,7 @@ def generate_maze(
         stack.append((next_row, next_col))
 
     # Случайно открываем часть внутренних стен, добавляя обходные пути.
+    # Условие выбирает перегородки между двумя проходами по вертикали или горизонтали.
     for row in range(1, height - 1):
         for col in range(1, width - 1):
             if grid[row][col] == 1 and \
@@ -203,6 +210,7 @@ def generate_maze(
     maze = Maze(grid, start=start)
 
     # Манхэттенские расстояния до всех проходов.
+    # Стены здесь не учитываются: фактический путь может быть длиннее этой оценки.
     distances = {
         (row, col): abs(row - start[0]) + abs(col - start[1])
         for row in range(1, height - 1)
