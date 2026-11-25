@@ -111,55 +111,68 @@ class BidirectionalBFS:
         found = False
 
         while queue_start and queue_end:
-            # Чередуем по одной клетке двух очередей для показа обеих волн.
-            # Сначала обрабатываем клетку со стороны старта.
-            current = queue_start.popleft()
-            visited_order.append(current)
-            events.append(("closed_start", current))
+            # Сначала обрабатываем слой со стороны старта.
 
-            if current in visited_end:
-                meeting_cell = current
-                found = True
-                break
+            q_start_size = len(queue_start)
+            for _ in range(q_start_size):
+                current = queue_start.popleft()
+                visited_order.append(current)
+                events.append(("closed_start", current))
 
-            for neighbor in self.maze.neighbors(current[0], current[1]):
-                if neighbor not in visited_start:
-                    visited_start.add(neighbor)
-                    previous_start[neighbor] = current
-                    queue_start.append(neighbor)
-                    events.append(("open_start", neighbor))
+                if current in visited_end:
+                    meeting_cell = current
+                    found = True
+                    break
 
-                    # Пересечение с обратным волновым фронтом.
-                    if neighbor in visited_end:
-                        meeting_cell = neighbor
-                        found = True
-                        break
+                for neighbor in self.maze.neighbors(current[0], current[1]):
+                    if neighbor not in visited_start:
+                        visited_start.add(neighbor)
+                        previous_start[neighbor] = current
+                        queue_start.append(neighbor)
+                        events.append(("open_start", neighbor))
+
+                        # Пересечение с обратным волновым фронтом.
+                        if neighbor in visited_end:
+                            meeting_cell = neighbor
+                            found = True
+                            break
+
+                if found:
+                    break
+
             if found:
                 break
 
 
-            # Затем обрабатываем клетку со стороны выхода.
-            current = queue_end.popleft()
-            visited_order.append(current)
-            events.append(("closed_end", current))
+            # Затем обрабатываем слой со стороны выхода.
 
-            if current in visited_start:
-                meeting_cell = current
-                found = True
-                break
+            q_end_size = len(queue_end)
+            for _ in range(q_end_size):
+                current = queue_end.popleft()
+                visited_order.append(current)
+                events.append(("closed_end", current))
 
-            for neighbor in self.maze.neighbors(current[0], current[1]):
-                if neighbor not in visited_end:
-                    visited_end.add(neighbor)
-                    previous_end[neighbor] = current
-                    queue_end.append(neighbor)
-                    events.append(("open_end", neighbor))
+                if current in visited_start:
+                    meeting_cell = current
+                    found = True
+                    break
 
-                    # Пересечение с прямым волновым фронтом.
-                    if neighbor in visited_start:
-                        meeting_cell = neighbor
-                        found = True
-                        break
+                for neighbor in self.maze.neighbors(current[0], current[1]):
+                    if neighbor not in visited_end:
+                        visited_end.add(neighbor)
+                        previous_end[neighbor] = current
+                        queue_end.append(neighbor)
+                        events.append(("open_end", neighbor))
+
+                        # Пересечение с прямым волновым фронтом.
+                        if neighbor in visited_start:
+                            meeting_cell = neighbor
+                            found = True
+                            break
+
+                if found:
+                    break
+                
             if found:
                 break
 
