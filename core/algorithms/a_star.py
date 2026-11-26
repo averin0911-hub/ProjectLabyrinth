@@ -118,7 +118,8 @@ class A_STAR:
 
         while queue:
             # Берём клетку с минимальной оценкой f; current_distance хранит g.
-            _, current_distance, current = heappop(queue)
+            _, neg_distance, current = heappop(queue)
+            current_distance = -neg_distance
 
             # В куче могут остаться старые записи клетки после улучшения оценки.
             # Уже обработанную клетку пропускаем.
@@ -146,7 +147,7 @@ class A_STAR:
 
                     f_scores[neighbor] = candidate_f_score
                     previous[neighbor] = current
-                    heappush(queue, (candidate_f_score, candidate_distance, neighbor))
+                    heappush(queue, (candidate_f_score, -candidate_distance, neighbor))
 
         # Если целевая клетка не достигнута — пути нет.
         if end_cell not in f_scores:
