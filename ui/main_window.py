@@ -389,6 +389,7 @@ class MainWindow(QMainWindow):
         results_layout.addWidget(legend_box)
 
         self.apply_style() # Стиль оформления
+        self.fit_comparison_table_width()
         # Создаём и показываем начальный лабиринт.
         self.generate_new_maze()
 
@@ -679,7 +680,19 @@ class MainWindow(QMainWindow):
 
                 self.comparison_table.setItem(row, column, item)
 
+        self.fit_comparison_table_width()
         self.statusBar().showMessage("Сравнение завершено")
+
+
+    def fit_comparison_table_width(self):
+        table = self.comparison_table
+        table.resizeColumnsToContents()
+        # Учитываем рамку и место под вертикальную прокрутку, чтобы не обрезать время.
+        table.setMinimumWidth(
+            table.horizontalHeader().length()
+            + 2 * table.frameWidth()
+            + table.verticalScrollBar().sizeHint().width()
+        )
 
 
     def style_table(self, table):
